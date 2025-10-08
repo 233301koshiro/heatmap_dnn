@@ -19,6 +19,8 @@ img_blank = np.zeros((512, 512, 3), dtype=np.uint8)
 
 # コピーを作成して描画用に使う
 img_draw = img_blank.copy()
+
+#組み合わせのパターン数を計算する
 def convination(n, r):
     # if (n, r) in memo_conv:
     #     return memo_conv[(n, r)]
@@ -33,7 +35,7 @@ def convination(n, r):
         # memo_conv[(n, r)] = ret
         return ret
 
-
+# 順列のパターン数を計算する
 def permutation(n, r):
     ret = 1
     for i in range(n-r+1, n+1):
@@ -41,6 +43,7 @@ def permutation(n, r):
     return ret
 
 
+# 局所最大値を取得する
 def get_localmax(pred_sig, kernelsize, th=0.3):
     """Get localmax"""
     padding_size = (kernelsize - 1) // 2
@@ -69,6 +72,8 @@ def sort_vertex(model_vertex, plane_vector, plane_normal):
     return model_vertex
 
 
+#ブロックのyamlファイルから読み込んだ凹凸頂点座標リスト(1*N)を(N*3)に変換する
+#
 def gen_fitting_model(blockdata, issort=True):
     """Generrate fitting model from config"""
     ret = {}
@@ -168,8 +173,61 @@ def gen_fitting_model(blockdata, issort=True):
             "bounding_point": bounding_point,
         }
     return ret
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+def visualize_block_model(block_model, title="Block Model"):
+    """
+    block_model: gen_fitting_model が返す辞書のうち、特定のブロック名の値
+      {
+        "model_vertexs": [ 面0の頂点配列, 面1の頂点配列, … ],
+        "convex_vertex_pos": (N×3) ndarray,
+        "concave_vertex_pos": (M×3) ndarray,
+        "bounding_point": (8×3) ndarray,
+      }
+    """
+    fig = plt.figure(figsize=(8,8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(title)
+    # 凸頂点 (青点)
+    cv = block_model["convex_vertex_pos"]
+    ax.scatter(cv[:,0], cv[:,1], cv[:,2], c='b', marker='o', label='convex')
 
+    # 凹頂点 (赤点)
+    hv = block_model["concave_vertex_pos"]
+    if hv.size:
+        ax.scatter(hv[:,0], hv[:,1], hv[:,2], c='r', marker='^', label='concave')
+
+    # 各面のポリゴン
+    for verts in block_model["model_vertexs"]:
+        # verts は (k×3) array：面上の頂点を一筆書き順にソート済み
+        poly = Poly3DCollection([verts], alpha=0.3, edgecolor='k')
+        ax.add_collection3d(poly)
+
+    # バウンディングボックスのエッジ
+    bp = block_model["bounding_point"]
+    # 8頂点の組み合わせで 12 本のエッジを描く
+    edges = [
+        (0,1),(1,2),(2,3),(3,0),
+        (4,5),(5,6),(6,7),(7,4),
+        (0,4),(1,5),(2,6),(3,7)
+    ]
+    for i,j in edges:
+        xs, ys, zs = zip(bp[i], bp[j])
+        ax.plot(xs, ys, zs, c='gray', linewidth=1)
+
+    ax.legend()
+    # アスペクト比を等しくする
+    max_range = (bp.max(axis=0) - bp.min(axis=0)).max() / 2
+    mid = (bp.max(axis=0) + bp.min(axis=0)) / 2
+    ax.set_xlim(mid[0]-max_range, mid[0]+max_range)
+    ax.set_ylim(mid[1]-max_range, mid[1]+max_range)
+    ax.set_zlim(mid[2]-max_range, mid[2]+max_range)
+    # 描画をファイルに保存
+    plt.savefig(f"{title.replace(' ', '_')}.png", dpi=150, bbox_inches='tight')
+    plt.close(fig)  # メモリ解放
+
+# モデルの頂点を法線に対して右回りになるように並べ替える
 def gen_featrue_map(image, model, device, score_ths=[0.5, 0.3], min_convex=6):
     """Generate feature map"""
     height, width = image.shape[0:2]
@@ -183,7 +241,7 @@ def gen_featrue_map(image, model, device, score_ths=[0.5, 0.3], min_convex=6):
     if pred_ch == 4:
         pred_hidden_convex = pred[:, 2:3].clone()
         pred_hidden_concave = pred[:, 3:4].clone()
-
+    ret_dict = {}
     for score_th in score_ths:
         pred_convex_lm = get_localmax(pred_convex, 13, score_th)
         pred_concave_lm = get_localmax(pred_concave, 13, score_th)
@@ -199,16 +257,16 @@ def gen_featrue_map(image, model, device, score_ths=[0.5, 0.3], min_convex=6):
         convex_pos = convex_pos[convex_pos[:, 1] != 0]
         convex_pos = convex_pos[convex_pos[:, 1] != height-1]
         if len(convex_pos) > min_convex:
-            # print(score_th)
+            print("a",score_th)
             break
-        ret_dict = {
-            "pred_convex": pred_convex,  # 凸頂点の予測ヒートマップ（tensor 形式）
-            "pred_concave": pred_concave,  # 凹頂点の予測ヒートマップ（tensor 形式）
-            "pred_convex_lm": pred_convex_lm,  # 凸頂点のランドマーク予測（局所化されたヒートマップ）
-            "pred_concave_lm": pred_concave_lm,  # 凹頂点のランドマーク予測（局所化されたヒートマップ）
-            "convex_pos": convex_pos,  # 凸頂点の2D座標のリスト（x, y）タプル形式
-            "concave_pos": concave_pos,  # 凹頂点の2D座標のリスト（x, y）タプル形式
-        }
+    ret_dict = {
+        "pred_convex": pred_convex,  # 凸頂点の予測ヒートマップ（tensor 形式）
+        "pred_concave": pred_concave,  # 凹頂点の予測ヒートマップ（tensor 形式）
+        "pred_convex_lm": pred_convex_lm,  # 凸頂点のランドマーク予測（局所化されたヒートマップ）
+        "pred_concave_lm": pred_concave_lm,  # 凹頂点のランドマーク予測（局所化されたヒートマップ）
+        "convex_pos": convex_pos,  # 凸頂点の2D座標のリスト（x, y）タプル形式
+        "concave_pos": concave_pos,  # 凹頂点の2D座標のリスト（x, y）タプル形式
+    }
 
     if pred_ch == 4:
         ret_dict["pred_hidden_convex"] = pred_hidden_convex
@@ -216,7 +274,7 @@ def gen_featrue_map(image, model, device, score_ths=[0.5, 0.3], min_convex=6):
 
     return ret_dict
 
-
+# モデルの頂点を法線に対して右回りになるように並べ替える
 def eval_score(points, image_width, image_height, score_map, hidden_score_map=None, min_score=1e-2):
     if True:
         min_logscore = math.log10(min_score)
@@ -778,26 +836,28 @@ def main():
         usage="",  # プログラムの利用方法
         add_help=True,  # -h/–help オプションの追加
     )
-    parser.add_argument("--dnnmodel", type=str, default="./model_010.pth")
-    parser.add_argument("--input", type=str, default="./test/image_000000.png")
-    parser.add_argument("--blockmodel", type=str, default="yellow_block")
+
+    parser.add_argument("--dnnmodel", type=str, default="./model_010.pth")#学習済みモデル
+    parser.add_argument("--input", type=str, default="./test/image_000000.png")#入力画像
+    parser.add_argument("--blockmodel", type=str, default="yellow_block")#blockmodelの名前
     parser.add_argument(
         "--annotatefile", type=str, default="./test/annotation.yaml"
-    )
-    parser.add_argument("--output", type=str, default="result.png")
-    parser.add_argument("--outputdir", type=str, default="./output")
+    )#バッチ評価モード用のアノテーション YAML
+    parser.add_argument("--output", type=str, default="result.png")#出力画像
+    parser.add_argument("--outputdir", type=str, default="./output")#出力ディレクトリ
     parser.add_argument("--device", type=str,
-                        default="cuda", choices=["cpu", "cuda"])
+                        default="cuda", choices=["cpu", "cuda"])#デバイス
     parser.add_argument('--score_th', type=float,
                         # nargs='*', default=[0.5, 0.3, 0.25, 0.2, 0.15, 0.1])
-                        nargs='*', default=[0.4, 0.3, 0.25, 0.2, 0.15, 0.1])
-    parser.add_argument('--itr_num', type=int, default=0)
-    parser.add_argument('--issort', type=strtobool, default=1)
-    parser.add_argument('--use_p3p', type=strtobool, default=1)
-    parser.add_argument('--use_ransac', type=strtobool, default=1)
-    parser.add_argument('--cut_score_th', type=float, default=-7)
+                        nargs='*', default=[0.4, 0.3, 0.25, 0.2, 0.15, 0.1])#スコアのしきい値
+    parser.add_argument('--itr_num', type=int, default=0)#イテレーション数
+    parser.add_argument('--issort', type=strtobool, default=1)#ソートするかどうか
+
+    parser.add_argument('--use_p3p', type=strtobool, default=1)#P3Pを使うかどうか
+    parser.add_argument('--use_ransac', type=strtobool, default=1)#RANSACを使うかどうか
+    parser.add_argument('--cut_score_th', type=float, default=-7)#特徴マップ生成時のスコア閾値リスト
     parser.add_argument('--eval_type', type=str,
-                        default='convination', choices=['area_size', 'prob', 'convination'])
+                        default='convination', choices=['area_size', 'prob', 'convination'])#評価の種類
     
     
     args = parser.parse_args()
@@ -807,17 +867,22 @@ def main():
     use_p3p = args.use_p3p == 1
     use_ransac = args.use_ransac == 1
 
+    #yamlを読み込んでカメラパラメータやブロックごとの#D情報を取得
     with open(args.annotatefile, "r", encoding="utf-8") as f:
         anno_dat = yaml.safe_load(f)
+
 
     model = torch.load(args.dnnmodel)
     model.to(device)
     model.eval()
 
-    #ヒートマップ変数候補1
-    #なんか色々な情報が入っているから違いそう
+    #各ブロック種別の頂点位置や結合情報から
+    #各ブロックをP3P/RANSACに適用しやすい形に変形
     fitting_model = gen_fitting_model(anno_dat["blocks"], issort=issort)
     #print(fitting_model)
+    visualize_block_model(fitting_model["yellow_block"], title="Yellow Block")
+    #input(単一画像であれば)これ
+    #空であればyaml内の全アノテーション複数画像をループするバッチを評価するモード
     if args.input != "":
         print("aaaaaaaaaaaaaaaaaaaa")
         cam_mat = np.array(anno_dat["annotations"]
@@ -841,13 +906,17 @@ def main():
         #これもなんかちがうわ色んな情報が入ってる
         ret_dict = gen_featrue_map(
             image, model, device, score_ths=args.score_th)
-        #print(ret_dict)
-        pred_convex = ret_dict["pred_convex"]
-        pred_concave = ret_dict["pred_concave"]
-        pred_convex_lm = ret_dict["pred_convex_lm"]
-        pred_concave_lm = ret_dict["pred_concave_lm"]
-        convex_pos = ret_dict["convex_pos"]
-        concave_pos = ret_dict["concave_pos"]
+        print(gen_featrue_map(
+            image, model, device, score_ths=args.score_th))
+        print(ret_dict)#何故か空
+
+        pred_convex = ret_dict["pred_convex"]#凸頂点ヒートマップ
+        pred_concave = ret_dict["pred_concave"]#凹頂点ヒートマップ
+        pred_convex_lm = ret_dict["pred_convex_lm"]#凸頂点ランドマーク回帰マップ
+        pred_concave_lm = ret_dict["pred_concave_lm"]#凹頂点ランドマーク回帰マップ
+        convex_pos = ret_dict["convex_pos"]#ヒートマップから抽出した凸頂点の2D座標
+        concave_pos = ret_dict["concave_pos"]#ヒートマップから抽出した凹頂点の2D座標
+
         if "pred_hidden_convex" in ret_dict:
             pred_hidden_convex = ret_dict["pred_hidden_convex"]
         else:
@@ -940,59 +1009,6 @@ def main():
         for i, vertex in enumerate(concave_vertices.reshape(-1, 3)):
             print(f"p{i+1}: {tuple(vertex)}")
     
-        '''
-        # 予測時の2D座標の出力
-        print("\n=====予測時の凹凸頂点の2D座標:=====")
-        print("凸頂点:")
-        for i, (x, y) in enumerate(convex_pos):
-            print(f"p{i+1}: ({x}, {y})")
-            #ここで出力されるポイントと色をタグ付けする
-
-        print("凹頂点:")
-        for i, (x, y) in enumerate(concave_pos):
-            print(f"p{i+1}: ({x}, {y})")
-        '''
-        '''
-        # 色リスト（BGR形式）
-        colors = [
-            (0, 0, 255),    # 赤
-            (255, 0, 0),    # 青
-            (0, 255, 0),    # 緑
-            (0, 255, 255),  # 黄
-            (255, 0, 255),  # マゼンタ
-            (255, 255, 0),  # シアン
-            (128, 0, 128),  # 紫
-            (0, 128, 128),  # ティール
-        ]
-
-        # 色の名前リスト（出力用）
-        color_names = ["赤", "青", "緑", "黄", "マゼンタ", "シアン", "紫", "ティール"]
-        # 黒背景画像を作成（高さ480, 幅640, チャンネル3）
-        img_blank = np.zeros((512, 512, 3), dtype=np.uint8)
-
-        # コピーを作成して描画用に使う
-        img_draw = img_blank.copy()
-
-        # --- 凸頂点 ---
-        print("\n=====予測時の凹凸頂点の2D座標:=====")
-        print("凸頂点:")
-        for i, (x, y) in enumerate(convex_pos):
-            color = colors[i % len(colors)]
-            color_name = color_names[i % len(color_names)]
-            print(f"凸 p{i+1}: ({x}, {y}) - 色: {color_name}")
-            cv2.circle(img_draw, (int(x), int(y)), radius=5, color=color, thickness=-1)
-
-        # --- 凹頂点 ---
-        print("凹頂点:")
-        for i, (x, y) in enumerate(concave_pos):
-            color = colors[i % len(colors)]
-            color_name = color_names[i % len(color_names)]
-            print(f"凹 p{i+1}: ({x}, {y}) - 色: {color_name}")
-            cv2.circle(img_draw, (int(x), int(y)), radius=5, color=color, thickness=-1)
-
-        # 画像表示（必要なら保存も）
-        cv2.imwrite("./output/output_with_colored_points.png", img_draw)
-        '''
 
         # 凸頂点を青で描画
         for i, (x, y) in enumerate(convex_pos):

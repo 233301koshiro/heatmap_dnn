@@ -1,0 +1,33 @@
+format: ChoreonoidBody
+format_version: 2.0
+angle_unit: degree
+name: "red_box"
+root_link: "Root"
+links: 
+  - 
+    name: "Root"
+    elements: 
+      - 
+        type: Transform
+        elements: 
+          - 
+            type: Transform
+            elements: 
+              - 
+                type: Shape
+                appearance: 
+                  material: 
+                    diffuse: [ 0.7, 0, 0 ]
+                    emissive: [ 0.3, 0, 0 ]
+                geometry: 
+                  type: Box
+                  size: [ 0.5, 0.5, 0.5 ]
+                contact: { friction: 2 }  # 摩擦係数の設定
+    joint_name: Root
+    joint_type: free  # 可動関節に変更
+    mass: 5
+    center_of_mass: [ 0, 0, 0 ]
+    inertia: [ 
+      5.20833, 0, 0, 
+      0, 5.20833, 0, 
+      0, 0, 5.20833 ]

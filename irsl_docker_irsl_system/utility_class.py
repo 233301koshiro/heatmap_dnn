@@ -9,11 +9,9 @@ from scipy.spatial import distance
 import matplotlib.pyplot as plt
 import os
 from scipy import stats
-from segmentation_models_pytorch import Unet
+
 # 配列の表示を省略せずに全て表示する
 np.set_printoptions(threshold=np.inf)
-
-
 
 #自分で作った、画像に関する関数が入ったクラス
 #似たような関数をクラス化してメソッドにしたものユーティリティクラスという
@@ -882,10 +880,9 @@ class Graph:
                     end = np.array(joint_points[j])
 
                     dist = distance.euclidean(start, end)
-                    if(dist<20):
+                    if(dist<30):
                         print("joint同士が近すぎるから繋がねーわ",start,end,dist)
                         #near_flag=True#近すぎflagがオン
-                        #G.remove_node(G.nodes[u])  # エッジを削除 
                         continue
                     else:
                         pass
@@ -925,217 +922,6 @@ class Graph:
             return G,object_points,joint_set,object_set,joint_points.T
     
     
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        prog='',  # プログラム名
-        usage='',  # プログラムの利用方法
-        add_help=True,  # -h/–help オプションの追加
-    )
-
-    #1.モデルの準備とコマンドライン引数
-    #parser.add_argument('--model', type=str, default='outline_model/output-2024-11-12-10-35-42/model_010.pth')
-    parser.add_argument('--model', type=str, default='image+outline_model/model_010.pth')#outline+imagemodel→普通に前よりひどい
-    #parser.add_argument('--model', type=str, default='image_model/output-2024-12-09-12-31-49/model_010.pth')#→joint_pointsできんくて全然グラフ作れんわ
-    #parser.add_argument('--model', type=str, default='outline_model/output-2024-12-09-10-00-34/model_010.pth')
-    parser.add_argument('--input', type=str, default='')
-    parser.add_argument('--joint_label', type=str, default='')
-    parser.add_argument('--endeffector_label', type=str, default='')
-    parser.add_argument('--output', type=str, default='')
-    parser.add_argument('--device', type=str, default='cuda', choices=['cpu', 'cuda'])
-    parser.add_argument('--range', type=int, default=6, help='探索範囲（上下左右に何マス調べるか）')
-    args = parser.parse_args()
-
-    alpha = 0.5
-    model_path = args.model
-    image_path = args.input
-    output_path = args.output
-    device = args.device
-    model_path=args.model
-    range_value=4
-    #torch.serialization.add_safe_globals([ResNetEncoder])
-    # Unetを安全なグローバルリストに追加
-    torch.serialization.add_safe_globals([Unet, set])
-    model = torch.load(model_path, weights_only=False)
-    model.to(device)
-    model.eval()
-    #for i in range(9270,9274):#グラフアルゴリズム評価のヒューマノイド
-    #for i in range(26031,26032):
-    #for i in range(23007,23008):
-    for i in range(26187,26199):#arm(heat)
-    #for i in range(30135,30146):#4足(heat)
-        image_path=f'dataset/joint_dataset/outline/outline_{str(i).zfill(8)}.png'
-        #image_path=f'dataset/joint_dataset/image/image_{str(i).zfill(8)}.png'
-
-        #image_path='testdata/humanoid3.png'
-        output_path=f'result/all/{str(i).zfill(8)}.png'
-        image_cv = cv2.imread(image_path)
-
-        graph_path=f'result/graph/graph_{str(i).zfill(8)}.png'
-        if image_cv.shape[:2]!=(512,512):
-            image_cv = cv2.resize(image_cv, (512, 512), interpolation=cv2.INTER_LINEAR)
-            print("リサイズしました")
-        name=""
-
-        if(str(i) in  image_path):
-            input_image=image_cv
-            robot_array=Mycv.binarize_to_fill_image(image_cv,0,None)#白塗りつぶし画像を作成、入力がもともと輪郭なので良し
-            print("テストデータだよ")
-            name = os.path.basename(image_path).split('_')[0]
-
-        else:
-            input_flag=int(input("輪郭手書きに変換して推定したいか:0　,そのまま画像で推定したいか:1\n"))
-            robot_array,input_image=Mycv.binarize_to_fill_image(image_cv,1,input_flag)#白塗り画像、輪郭画像
-            print("手書きだよい")
-            name='tegaki'
- 
-
-        # グレースケール画像をRGB画像に変換
-        # 画像がモノクロかカラーかで処理を分ける
-        if len(input_image.shape) == 2:  # モノクロ画像の場合（高さ, 幅）
-            input_image = cv2.cvtColor(input_image, cv2.COLOR_GRAY2BGR)
-        elif len(input_image.shape) == 3:  # カラー画像の場合（高さ, 幅, チャンネル）
-            input_image=input_image
-            if input_image.shape[2] != 3:
-                raise ValueError(f"Unexpected number of channels: {input_image.shape[2]}")
-
-        if(str(i) in  image_path):
-            cv2.imwrite(f'testdata/{name}_result/モデルに突っ込む画像.png', input_image)#入力画像が白塗りか輪郭かそのままかわかるよ
-        else:
-            cv2.imwrite(f'testdata/{name}_result/モデルに突っ込む画像.png', input_image)#入力画像が白塗りか輪郭かそのままかわかるよ
-        
-        #3.画像を(チャンネル, 高さ, 幅)に変換
-        image = np.transpose(input_image, (2, 0, 1)).astype(np.float32) / 255
-        image = image[np.newaxis, :, :, :]
-        image = torch.Tensor(image).to(device)
-
-        #4.モデルにテスト画像を突っ込む
-        pred = model(image)
-        #5.ヒートマップをtensorからnumpyに
-        joint_heatmap_np = pred[0, 1].sigmoid().cpu().detach().numpy()  # (512,512)持ョイント用のチャネル
-        endeffector_heatmap_np = pred[0, 0].sigmoid().cpu().detach().numpy()  # エンドエフェクター用のチャネル
-
-        
-        #6.グレースケールに変換
-        joint_heatmap_gray = (joint_heatmap_np * 255).astype(np.uint8)  # ジョイント用ヒートマップ
-        endeffector_heatmap_gray = (endeffector_heatmap_np * 255).astype(np.uint8)  # エンドエフェクター用ヒートマップ
-        alpha=0.5
-        joint_color_haetmap=Mycv.make_color_heatmap(joint_heatmap_gray)
-        j_blended = cv2.addWeighted(joint_color_haetmap, alpha, input_image, 1 - alpha, 0)
-        cv2.imwrite(f'testdata/{name}_result/joint_color_heatmap.png', j_blended)
-        endeffector_color_haetmap=Mycv.make_color_heatmap(endeffector_heatmap_gray)
-        e_blended = cv2.addWeighted(endeffector_color_haetmap, alpha, input_image, 1 - alpha, 0)
-        cv2.imwrite(f'testdata/{name}_result/endeffector_color_heatmap.png', e_blended)
-        
-        #7.上下左右の探索範囲を指定して、ヒートマップから特に明るい場所だけを残す
-        search_range=range_value
-        joint_heatmap_tf=Mycv.get_localmax(pred[0,1].sigmoid(),kernelsize=(search_range+2)*2+1,th=0.4)#やり方2(高速)
-        joint_heatmap_tf = joint_heatmap_tf.detach().cpu().numpy()[0,0]#ヒートマップをnumpyに
-
-
-        #エンドエフェクタは数が少なくてヒートマップも薄い。そして離れているつまり探索範囲を広げて閾値を下げる？
-        endeffector_heatmap_tf=Mycv.get_localmax(pred[0,0].sigmoid(),kernelsize=(search_range+3)*2+1,th=0.5)#やり方2(高速)
-        endeffector_heatmap_tf = endeffector_heatmap_tf.detach().cpu().numpy()[0,0]#ヒートマップをnumpyに 
-
-        #tfがちゃんとでるまで閾値をさげる
-        j=1
-        while(len(np.array(np.where(endeffector_heatmap_tf != 0)).T[:, ::-1])==0):
-            endeffector_heatmap_tf=Mycv.get_localmax(pred[0,0].sigmoid(),kernelsize=(search_range+2)*2+1,th=0.5-0.1*j)#やり方2(高速)
-            endeffector_heatmap_tf = endeffector_heatmap_tf.detach().cpu().numpy()[0,0]
-            if(j==5):
-                print("エンドエフェクタは推定できませんでした")
-            j+=1
-        #tfは画像で表示するとがちでちっちゃいから配列の座標を表示させる
-        #numpyでheatmap_tfを保存
-        np.save('dataset/joint_heatmap_tf.npy',joint_heatmap_tf)
-        np.save('dataset/endeffector_heatmap_tf.npy',endeffector_heatmap_tf)
-
-        joint_localmax_haetmap=Mycv.draw_local_max_image(np.array(np.where(joint_heatmap_tf != 0)).T[:, ::-1])
-        endeffector_localmax_haetmap=Mycv.draw_local_max_image(np.array(np.where(endeffector_heatmap_tf != 0)).T[:, ::-1])
-
-        j_blended_localmax = cv2.addWeighted(joint_localmax_haetmap, alpha, input_image, 1 - alpha, 0)
-        e_blended_localmax = cv2.addWeighted(endeffector_localmax_haetmap, alpha, input_image, 1 - alpha, 0)
-        cv2.imwrite(f'testdata/{name}_result/endeffector_localmax_heatmap.png', e_blended_localmax) 
-        cv2.imwrite(f'testdata/{name}_result/joint_localmax_heatmap.png', j_blended_localmax)
-        
-        #joint_heatmap_tf = np.load('dataset/joint_heatmap_tf.npy')
-        #endeffector_heatmap_tf = np.load('dataset/endeffector_heatmap_tf.npy')
-        gray = cv2.cvtColor(robot_array, cv2.COLOR_BGR2GRAY)
-        # 2値化（白:255 -> 1, 黒:0 -> 0）
-        binary_array = (gray > 0).astype(int)  # オブジェクトを1、背景を0とする
-        #オブジェクト白塗り領域とヒートマップを使ってグラフを作成
-        JG,object_points,joint_set,object_set,joint_points=Graph.new_create_graph_from_points(joint_heatmap_tf,binary_array,flag='joint')
-        EG,end_points=Graph.new_create_graph_from_points(endeffector_heatmap_tf,binary_array,flag='endeffector')
-        print(joint_points.shape)
-        print(end_points.shape)
-        GG,multi_node=Graph.docking_graph(JG,EG,object_set,joint_set)
-        
-        debug_image=Mycv.draw_debug_image(GG,object_points)
-        
-
-        cv2.imwrite(f'testdata/{name}_result/debug_image.png', debug_image)#手書き用
-        NG=Graph.teacher_graph(GG,multi_node)
-        DG = Graph.create_rooted_directed_tree(NG, root_param='Root')
-
-        #for node, attrs in DG.nodes(data=True):
-        #    print(f"Node {node}:")
-        #    for attr, value in attrs.items():
-        #        print(f"  {attr}: {value}")
-        #    print("\n")
-        
-        
-
-
-            # 2枚の画像をアルファブレンド
-       
-        if(str(i) in  image_path):
-            print("うんちんこ")
-            Graph.save_graph_image(GG,f'testdata/{name}_result/graph_docking_{str(i).zfill(8)}.png',True)#いつもの        
-            cv2.imwrite(f'testdata/{name}_result/debug_image_{str(i).zfill(8)}.png', debug_image)#いつもの
-            Graph.draw_graph_with_hierarchy(DG,f'testdata/{name}_result/graph_teacher_{str(i).zfill(8)}.png')#いつもの
-            docking_graph=cv2.imread(f'testdata/{name}_result/graph_docking_{str(i).zfill(8)}.png')#いつもの
-            teacher_graph=cv2.imread(f'testdata/{name}_result/graph_teacher_{str(i).zfill(8)}.png')#いつもの
-            #正解があるとき        
-            #if(name=='image'):
-                #true_image_path=f'dataset/joint_dataset/image/image_{str(i).zfill(8)}.png'
-            #elif(name=='outline'):
-                #true_image_path=f'dataset/joint_dataset/outline/outline_{str(i).zfill(8)}.png'
-            true_image_path=f'dataset/joint_dataset/image/image_{str(i).zfill(8)}.png'
-            true_image=cv2.imread(true_image_path)        
-            joint_label=f'dataset/joint_dataset/label/joint/label_joint_{str(i).zfill(8)}.png'
-            end_label=f'dataset/joint_dataset/label/endeffector/label_endeffector_{str(i).zfill(8)}.png'
-            #本物画像関係
-            true_joint=cv2.imread(joint_label)
-            true_end=cv2.imread(end_label)        
-            true_joint_points = np.argwhere(np.any(true_joint != 0, axis=-1))
-            true_end_points = np.argwhere(np.any(true_end != 0, axis=-1))
-            true_image=Mycv.draw_true_image(true_image,true_joint_points,true_end_points)
-            cv2.imwrite(f'testdata/{name}_result/true_image.png', true_image)#手書き用
-            #まぜまぜ
-            docking_graph=Mycv.ensure_same_dimensions(true_image, docking_graph)
-            teacher_graph=Mycv.ensure_same_dimensions(true_image, teacher_graph)
-
-            #images=[true_image,j_blended,e_blended,debug_image,teacher_graph]
-            #images=[true_image,input_image,j_blended,e_blended]#論文用
-            images=[true_image,input_image,debug_image,teacher_graph]#graph用
-            concatenated_image = np.hstack(images)
-            cv2.imwrite(f'testdata/{name}_result/all_{str(i).zfill(8)}.png', concatenated_image)
-            #cv2.imwrite(f'dataset/new_{str(i).zfill(8)}.png', concatenated_image)
-        
-        else:
-            Graph.save_graph_image(GG,f'testdata/{name}_result/graph_docking.png',True)#手書き用
-            Graph.draw_graph_with_hierarchy(DG,f'testdata/{name}_result/graph_teacher.png')#手書き用
-            docking_graph=cv2.imread(f'testdata/{name}_result/graph_docking.png')#手書き用
-            teacher_graph=cv2.imread(f'testdata/{name}_result/graph_teacher.png')#手書き用
-            docking_graph=Mycv.ensure_same_dimensions(image_cv, docking_graph)
-            teacher_graph=Mycv.ensure_same_dimensions(image_cv, teacher_graph)
-            #images=[input_image,j_blended,e_blended,debug_image,teacher_graph]
-            #images=[image_cv,input_image,j_blended,e_blended]#heatmap論文用
-            images=[input_image,debug_image,docking_graph,teacher_graph]#graph用
-
-            concatenated_image = np.hstack(images)
-            cv2.imwrite(f'testdata/{name}_result/all_{os.path.basename(image_path)}', concatenated_image)
 
         
 

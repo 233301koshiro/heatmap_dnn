@@ -1,0 +1,47 @@
+strict digraph "" {
+	Root	[params="{'node': 'Root', 'type': 'link', 'joint': {'type': 'root'}}",
+		shape=diamond];
+	G_Root	[params="{'node': 'G_Root', 'type': 'geom', 'geometry': {'primitive': 'box', 'args': {'x': 0.2, 'y': 0.2, 'z': 0.2, 'color': [1, 1, 1]}}, '\
+original_node': 'JG_(224, 123)'}",
+		shape=box];
+	Root -> G_Root;
+	L6	[params="{'node': 'L6', 'type': 'link', 'original_node': 'JG_4', 'translation': [0, 0, 1.0], 'relative': True, 'joint': {'type': 'ball'}}",
+		shape=cylinder];
+	G_Root -> L6;
+	L5	[params="{'node': 'L5', 'type': 'link', 'original_node': 'JG_3', 'translation': [0, 0, 1.0], 'relative': True, 'joint': {'type': 'ball'}}",
+		shape=cylinder];
+	L6 -> L5;
+	L4	[params="{'node': 'L4', 'type': 'link', 'original_node': 'JG_2', 'translation': [0, 0, 1.0], 'relative': True, 'joint': {'type': 'ball'}}",
+		shape=cylinder];
+	L5 -> L4;
+	L3	[params="{'node': 'L3', 'type': 'link', 'original_node': 'JG_1', 'translation': [0, 0, 1.0], 'relative': True, 'joint': {'type': 'ball'}}",
+		shape=cylinder];
+	L4 -> L3;
+	L2	[params="{'node': 'L2', 'type': 'link', 'original_node': 'JG_0', 'translation': [0, 0, 1.0], 'relative': True, 'joint': {'type': 'ball'}}",
+		shape=cylinder];
+	L3 -> L2;
+	L8	[params="{'node': 'L8', 'type': 'link', 'original_node': 'JG_(220, 111)', 'translation': [0, 0, 1.0], 'relative': True, 'joint': {'type': '\
+ball'}}",
+		shape=cylinder];
+	L2 -> L8;
+	L10	[params="{'node': 'L10', 'type': 'link', 'original_node': 'JG_(224, 123)', 'translation': [0, 0, 1.0], 'relative': True, 'joint': {'type': '\
+ball'}}",
+		shape=cylinder];
+	L2 -> L10;
+	L7	[params="{'node': 'L7', 'type': 'link', 'original_node': 'JG_(204, 104)', 'translation': [0, 0, 0.5], 'relative': True, 'joint': {'type': '\
+ball'}}",
+		shape=cylinder];
+	L8 -> L7;
+	G0	[params="{'node': 'G0', 'type': 'geom', 'original_node': 'EG_(171, 90)', 'translation': [0, 0, 0.5], 'relative': True, 'joint': {'type': '\
+ball'}, 'geometry': {'primitive': 'box', 'args': {'x': 0.2, 'y': 0.5, 'z': 1.0, 'color': [1, 0, 0]}}}",
+		shape=box];
+	L7 -> G0;
+	L9	[params="{'node': 'L9', 'type': 'link', 'original_node': 'JG_(212, 128)', 'translation': [0, 0, 0.5], 'relative': True, 'joint': {'type': '\
+ball'}}",
+		shape=cylinder];
+	L10 -> L9;
+	G1	[params="{'node': 'G1', 'type': 'geom', 'original_node': 'EG_(187, 137)', 'translation': [0, 0, 0.5], 'relative': True, 'joint': {'type': '\
+ball'}, 'geometry': {'primitive': 'box', 'args': {'x': 0.2, 'y': 0.5, 'z': 1.0, 'color': [1, 0, 0]}}}",
+		shape=box];
+	L9 -> G1;
+}
