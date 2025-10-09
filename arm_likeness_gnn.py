@@ -54,9 +54,9 @@ class ArmLikenessGNN(nn.Module):
         self.convs = nn.ModuleList(convs)
         self.norms = nn.ModuleList(norms)
 
-        # 変更前: GlobalAttention(...)
-        # 変更後: AttentionalAggregation を使う
+        #api的に後継機になっただけでglobalattentionと同じ動作
         self.pool = AttentionalAggregation(gate_nn=mlp([hidden, hidden // 2, 1], dropout=dropout))
+
 
         self.head = mlp([hidden, hidden // 2, 1], dropout=dropout)
 
@@ -100,14 +100,12 @@ def train_one_epoch(model, loader, device, cfg: TrainCfg):
 
     for data in loader:
         data = data.to(device)
-        logit = model(data)                 # [K]  (K <= B になりうる)
+        logit = model(data)  # [K]
         if logit.numel() == 0:
-            # まれに全件が空グラフで K=0 のことがあるならスキップ
             continue
-
-        # 実在したグラフIDだけ y を拾って K と整合させる
-        present = torch.unique(data.batch)  # 例: tensor([0,1,3,5]) のように欠番あり
+        present = torch.unique(data.batch)
         y = data.y.to(device).float()[present]  # [K]
+
 
         loss = crit(logit, y)
 
