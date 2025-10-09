@@ -36,7 +36,17 @@ def main():
     draw_graph_png(G_full, out_base + "_urdf_full.png", "URDF Full Joint Graph")
 
     # 処理後（剪定 + 可動骨格）→ 特徴＋PNG
-    S, node_list, X, edge_index, E, scale = graph_features(G_full, cfg)
+    # graph_features の戻りが 7要素になったので受け取りを変更
+    S, node_list, X, edge_index, E, scale, removed_records = graph_features(G_full, cfg)
+
+    # 既存のノード/エッジCSV作成はそのまま…
+    # 追加：removed_nodes.csv を保存
+    import pandas as pd
+    df_removed = pd.DataFrame(removed_records) if removed_records else pd.DataFrame(columns=["node","reason"])
+    removed_csv = out_base + "_removed_nodes.csv"
+    df_removed.to_csv(removed_csv, index=False)
+
+    print("  ", removed_csv)
 
     # DataFrame化
     import numpy as np, pandas as pd, networkx as nx
