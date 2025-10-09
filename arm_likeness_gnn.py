@@ -7,7 +7,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.data import Data, Dataset
-from torch_geometric.nn import GINEConv, GlobalAttention
+# 変更前
+# from torch_geometric.nn import GINEConv, GlobalAttention
+# 変更後
+from torch_geometric.nn import GINEConv
+from torch_geometric.nn.aggr import AttentionalAggregation
+
 from torch_geometric.loader import DataLoader
 
 # ---- ユーティリティ（両方向エッジ化） ----
@@ -31,48 +36,50 @@ def mlp(sizes: List[int], dropout: float = 0.1) -> nn.Sequential:
     for i in range(len(sizes) - 1):
         layers.append(nn.Linear(sizes[i], sizes[i+1]))
         if i < len(sizes) - 2:
-            layers += [nn.ReLU(), nn.BatchNorm1d(sizes[i+1]), nn.Dropout(dropout)]
+            layers += [nn.ReLU(), nn.LayerNorm(sizes[i+1]), nn.Dropout(dropout)]
     return nn.Sequential(*layers)
 
 # ---- モデル本体 ----
 class ArmLikenessGNN(nn.Module):
     def __init__(self, in_node: int, in_edge: int, hidden: int = 128, n_layers: int = 3, dropout: float = 0.1):
         super().__init__()
-        # edge attr を前処理してGINEへ渡すMLP
+        # ★注意：ここで in_edge は「元の edge_attr 次元 + 1（方向フラグ）」にしておく
         self.edge_mlp = mlp([in_edge, hidden, hidden], dropout=dropout)
-        # ノード初期射影
         self.node_in  = mlp([in_node, hidden], dropout=dropout)
 
         convs, norms = [], []
         for _ in range(n_layers):
             convs.append(GINEConv(nn=mlp([hidden, hidden, hidden], dropout=dropout), train_eps=True))
-            norms.append(nn.BatchNorm1d(hidden))
+            norms.append(nn.LayerNorm(hidden))  # ← BatchNorm1d から LayerNorm へ
         self.convs = nn.ModuleList(convs)
         self.norms = nn.ModuleList(norms)
 
-        # Global Attention pooling
-        self.pool = GlobalAttention(gate_nn=mlp([hidden, hidden // 2, 1], dropout=dropout))
-        # ヘッド（1ロジット出力）
+        # 変更前: GlobalAttention(...)
+        # 変更後: AttentionalAggregation を使う
+        self.pool = AttentionalAggregation(gate_nn=mlp([hidden, hidden // 2, 1], dropout=dropout))
+
         self.head = mlp([hidden, hidden // 2, 1], dropout=dropout)
 
     def forward(self, data: Data) -> torch.Tensor:
         x, ei, ea, batch = data.x, data.edge_index, data.edge_attr, data.batch
 
-        # 両方向化（方向フラグ ±1 を付与）
+        # 両方向化（方向フラグ ±1 を付与）→ ea の次元が +1 される
         ei, ea = make_bidirectional(ei, ea)
 
         e = self.edge_mlp(ea)
         x = self.node_in(x)
 
-        for conv, bn in zip(self.convs, self.norms):
+        for conv, ln in zip(self.convs, self.norms):
             res = x
-            x = conv(x, ei, e)   # エッジ特徴込みメッセージ
-            x = bn(F.relu(x))
-            x = x + res          # 残差
+            x = conv(x, ei, e)
+            x = F.relu(x)
+            x = ln(x)      # ← LayerNorm
+            x = x + res
 
-        g = self.pool(x, batch)      # [B, hidden]
-        logit = self.head(g).squeeze(-1)  # [B]
+        g = self.pool(x, batch)             # [K, hidden]  ※空グラフはそもそも g に現れない
+        logit = self.head(g).squeeze(-1)    # [K]
         return logit
+
 
 # ---- 参考：学習ループの最小骨格 ----
 @dataclass
@@ -93,8 +100,15 @@ def train_one_epoch(model, loader, device, cfg: TrainCfg):
 
     for data in loader:
         data = data.to(device)
-        logit = model(data)                 # [B]
-        y = data.y.view_as(logit).float()   # [B]
+        logit = model(data)                 # [K]  (K <= B になりうる)
+        if logit.numel() == 0:
+            # まれに全件が空グラフで K=0 のことがあるならスキップ
+            continue
+
+        # 実在したグラフIDだけ y を拾って K と整合させる
+        present = torch.unique(data.batch)  # 例: tensor([0,1,3,5]) のように欠番あり
+        y = data.y.to(device).float()[present]  # [K]
+
         loss = crit(logit, y)
 
         opt.zero_grad()
@@ -102,8 +116,9 @@ def train_one_epoch(model, loader, device, cfg: TrainCfg):
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step()
 
-        total += float(loss.item()) * data.num_graphs
+        total += float(loss.item()) * int(present.numel())
     return total / len(loader.dataset)
+
 
 @torch.no_grad()
 def eval_loss(model, loader, device):

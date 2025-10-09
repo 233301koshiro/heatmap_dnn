@@ -17,7 +17,7 @@ def build_data(urdf_path: str, y: float) -> Data:
 #valuwはアームロボットっぽいかどうか0~1
 train_list = [
     #アームロボット群
-    ("/home/irsl/heatmap_dnn/gnn_arm_dataset/boxter.urdf", 1.0),
+    ("/home/irsl/heatmap_dnn/gnn_arm_dataset/baxter.urdf", 1.0),
     ("/home/irsl/heatmap_dnn/gnn_arm_dataset/finger_edu.urdf", 1.0),
     ("/home/irsl/heatmap_dnn/gnn_arm_dataset/kinova.urdf", 1.0),
     ("/home/irsl/heatmap_dnn/gnn_arm_dataset/kr150_2.urdf", 1.0),
@@ -30,12 +30,12 @@ train_list = [
     ("/home/irsl/heatmap_dnn/gnn_arm_dataset/ur10_robot.urdf", 1.0),
     ("/home/irsl/heatmap_dnn/gnn_arm_dataset/z1.urdf", 1.0),
     # ...
-    
+
     # 非アームロボット群
-    ("/home/irsl/heatmap_dnn/urdf_robot_gnn/a_1.urdf", 0.4),#四脚アームロボット
-    ("/home/irsl/heatmap_dnn/urdf_robot_gnn/animal-kinova.urdf", 0.0),
-    ("/home/irsl/heatmap_dnn/urdf_robot_gnn/animal_b.urdf", 0.0),
-    ("/home/irsl/heatmap_dnn/gnn_arm_dataset/animal_c.urdf", 0.0),
+    ("/home/irsl/heatmap_dnn/urdf_robot_gnn/a1.urdf", 0.4),#四脚アームロボット
+    ("/home/irsl/heatmap_dnn/urdf_robot_gnn/anymal-kinova.urdf", 0.0),
+    ("/home/irsl/heatmap_dnn/urdf_robot_gnn/anymal_b.urdf", 0.0),
+    ("/home/irsl/heatmap_dnn/urdf_robot_gnn/anymal_c.urdf", 0.0),
     ("/home/irsl/heatmap_dnn/urdf_robot_gnn/b1-z1.urdf", 0.4),
     ("/home/irsl/heatmap_dnn/urdf_robot_gnn/b1.urdf", 0.0),
     ("/home/irsl/heatmap_dnn/urdf_robot_gnn/bolt.urdf", 0.0),
@@ -48,13 +48,23 @@ train_list = [
     ("/home/irsl/heatmap_dnn/urdf_robot_gnn/solo.urdf", 0.0),
     
 ]
-train_data = [build_data(p, y) for p, y in train_list]
+
+train_data = []
+for p, y in train_list:#可動域が0のグラフはスキップ
+    d = build_data(p, y)
+    if d.num_nodes == 0:   # or d.edge_index.numel() == 0
+        print(f"[skip] empty graph (movable joints 0): {p}")
+        continue
+    train_data.append(d)
 loader = DataLoader(train_data, batch_size=8, shuffle=True)
+
 
 # モデル
 in_node = train_data[0].num_node_features        # 7
-in_edge = train_data[0].edge_attr.size(1)        # 17（方向フラグは内部で追加）
+base_edge = train_data[0].edge_attr.size(1)      # 17（素のエッジ特徴）
+in_edge = base_edge + 1                          # ★ make_bidirectional で +1 される分
 model = ArmLikenessGNN(in_node=in_node, in_edge=in_edge, hidden=128, n_layers=3)
+# 学習ループ
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
