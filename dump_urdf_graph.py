@@ -29,7 +29,7 @@ def main():
         movable_only_graph=not args.include_fixed,
         normalize_by=("none" if args.no_normalize else "mean_edge_len"),
     )
-
+    
     # フル構造PNG（比較用）
     urdf = load_urdf_any(args.urdf)
     G_full, _ = urdf_to_graph(urdf)
