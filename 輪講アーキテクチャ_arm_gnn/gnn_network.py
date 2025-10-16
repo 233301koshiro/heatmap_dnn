@@ -19,8 +19,12 @@ def mlp(sizes: List[int], dropout: float = 0.1) -> nn.Sequential:
 
 # ---------- 木向け 往復パス ----------
 class DownUpLayer(nn.Module):
+    #Tree_encoderとTree_decoderでmlpの後に使われるこれこそがGNNの本体
+    #木構造に沿ったGINConvを使った往復伝播を行う
     def __init__(self, hidden: int, dropout: float = 0.1):
         super().__init__()
+        #GINConvは「近傍の特徴を和で集めてMLPに渡す」だけのシンプルなGNNレイヤ
+        #downとupの記述が同じだが、パラメータは別々
         self.down = GINConv(mlp([hidden, hidden, hidden], dropout=dropout), train_eps=True)
         self.up   = GINConv(mlp([hidden, hidden, hidden], dropout=dropout), train_eps=True)
         self.ln1 = nn.LayerNorm(hidden)
@@ -28,20 +32,37 @@ class DownUpLayer(nn.Module):
         self.dir_emb = nn.Parameter(torch.randn(2, hidden) * 0.02)  # [down, up]
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        #こっちは木構造に沿った往復伝播
+        #xはノード埋込み[N,H]
+        #edge_indexに従ってmlpしたあとにGINConvで集約
+        #入力をそのまま足す(Resnetみたい)
+        #dir_embは伝播方向の情報を埋め込むためのパラメータ
+        #downは木構造に沿った順向き伝播(edge_indexそのまま)
+        #reluで活性化してlnで正規化
         x = self.ln1(F.relu(self.down(x, edge_index) + x + self.dir_emb[0]))
-        rev = edge_index[[1, 0]]
+        rev = edge_index[[1, 0]]#エッジの向きを逆にする
+
+        #こっちは木構造に沿った逆向き伝播(revはedge_indexの逆)
         x = self.ln2(F.relu(self.up(x, rev) + x + self.dir_emb[1]))
         return x
 
 # ---------- rootプール（root_index優先、無ければin-degree==0平均、無ければAttention） ----------
-#グラフ潜在ベクトル z を得る。
+#rootのインデックスが与えられたらそこを使う
 def root_pool(x: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor, root_index: Optional[torch.Tensor]) -> torch.Tensor:
+    #root_indexが与えられたらそれを使う
     if root_index is not None:
         return x[root_index]  # [B,H]
+    
+    #root_indexが無ければ、in-degree==0ノードの平均を使う
     N, E = x.size(0), edge_index.size(1)
+
+    # 各ノードのin-degreeを計算
     indeg = torch.zeros(N, device=x.device, dtype=torch.long)
     indeg.scatter_add_(0, edge_index[1], torch.ones(E, device=x.device, dtype=torch.long))
     is_root = (indeg == 0).float()
+
+    # バッチ中にin-degree==0ノードが無いグラフがあれば、Attentionで集約
+    #ルートが存在しないグラフがあるかを判定
     if (is_root.sum() == 0) or (scatter_mean(is_root, batch, dim=0) == 0).any():
         attn = AttentionalAggregation(gate_nn=mlp([x.size(1), x.size(1)//2, 1]))
         return attn(x, batch)
@@ -54,12 +75,15 @@ class TreeEncoder(nn.Module):
     def __init__(self, in_dim: int, hidden: int = 128, num_rounds: int = 2, dropout: float = 0.1):
         super().__init__()
         #入力をhidden次元に変換
+        #projはprojectionで射影・次元変換を意味する
         self.in_proj = mlp([in_dim, hidden], dropout=dropout)
+
         #木構造に沿った往復伝播を複数回行う
         self.layers = nn.ModuleList([DownUpLayer(hidden, dropout=dropout) for _ in range(num_rounds)])
 
     #順伝播
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        #最初のxは [N, in_dim](バッチ内全ノード, 1nodeの特徴数)maskありなら+1らしい
         h = self.in_proj(x)# [N,H]
         #木構造に沿って往復伝播
         for layer in self.layers:
@@ -72,6 +96,7 @@ class TreeDecoder(nn.Module):
     def __init__(self, anchor_dim: int, hidden: int = 128, num_rounds: int = 2, dropout: float = 0.1, out_dim: int = 19):
         super().__init__()
         # 入力は [anchor, mask_flag, z] を結合してhiddenへ
+        
         self.in_proj = mlp([anchor_dim + 1 + hidden, hidden], dropout=dropout)
         self.layers = nn.ModuleList([DownUpLayer(hidden, dropout=dropout) for _ in range(num_rounds)])
         self.out_proj = mlp([hidden, hidden, out_dim], dropout=dropout)
@@ -93,6 +118,7 @@ class MaskedTreeAutoencoder(nn.Module):
         super().__init__()
         self.in_dim = in_dim
         self.hidden = hidden
+        #
         self.encoder = TreeEncoder(in_dim + 1, hidden, enc_rounds, dropout)   # +1 は mask_flag
         self.decoder = TreeDecoder(
             anchor_dim = (in_dim if anchor_idx is None else (anchor_idx.stop - anchor_idx.start)),
@@ -116,7 +142,9 @@ class MaskedTreeAutoencoder(nn.Module):
             mask_flag[mask_idx] = 1.0
 
         # ---- Encoder：木MPでノード→rootへ集約し、zを得る ----
+        #h_encはzを得るための中間表現
         h_enc = self.encoder(torch.cat([x, mask_flag], dim=1), ei)   # [N,H]
+        #rootがあるかどうかでzの取り方を変える
         z = root_pool(h_enc, ei, batch, root_index=root_index)       # [B,H]
 
         # ---- Decoder：zを各ノードにbroadcastして木MPで展開、特徴を再構成 ----
