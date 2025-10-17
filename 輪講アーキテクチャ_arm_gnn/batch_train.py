@@ -12,7 +12,7 @@ from datetime import datetime
 # ========== 既定設定 ==========
 OUTPUT_ROOT = "output"          # でかい出力フォルダ
 PYTHON_EXE  = sys.executable    # 使うPython
-DUMP_SCRIPT = "new_dump_urdf_graph.py"
+DUMP_SCRIPT = "create_csv_and_png.py"
 DUMP_FLAGS  = [
     # 例: "--no-normalize"
     # 空のまま = 正規化あり（mean_edge_len）
@@ -34,7 +34,7 @@ def main():
 
     # train_list を import（(path, y) のリスト）
     try:
-        from new_train_arm_likeness import train_list
+        from train import train_list
     except Exception as e:
         print("ERROR: train_list の import に失敗しました。batch_dump_urdf_graph.py と同じ環境で実行してください。")
         print(e)

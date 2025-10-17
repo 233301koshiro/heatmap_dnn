@@ -95,21 +95,50 @@ class TreeEncoder(nn.Module):
 class TreeDecoder(nn.Module):
     def __init__(self, anchor_dim: int, hidden: int = 128, num_rounds: int = 2, dropout: float = 0.1, out_dim: int = 19):
         super().__init__()
-        # 入力は [anchor, mask_flag, z] を結合してhiddenへ
-        
+        # 入力は [anchor, mask_flag, z_node] を結合して hidden へ射影する。
+        # - anchor     : [N, anchor_dim]  復元の“手掛かり”にして良い列（構造メタ等）
+        # - mask_flag  : [N, 1]           どのノードをマスクしたか（1=マスク）
+        # - z_node     : [N, hidden]      グラフ潜在 z を各ノードに貼り付けたもの
+        # 合計列次元は anchor_dim + 1 + hidden
+
         self.in_proj = mlp([anchor_dim + 1 + hidden, hidden], dropout=dropout)
+
+        # Encoder 同様、木構造に沿った往復伝播（Down→Up）を複数回
+        # 形は常に [N, hidden] を保つ（情報だけが濃くなる）
         self.layers = nn.ModuleList([DownUpLayer(hidden, dropout=dropout) for _ in range(num_rounds)])
+        
+        # 最終的に hidden → out_dim（=元のノード特徴次元）へ戻すプロジェクタ
+        # 例: [N, hidden] → [N, hidden] → [N, out_dim]
         self.out_proj = mlp([hidden, hidden, out_dim], dropout=dropout)
 
     def forward(self, anchor: torch.Tensor, mask_flag: torch.Tensor, z: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
-        # zを各ノードへbroadcast
-        z_node = z[batch]                    # [N,H]
-        h = torch.cat([anchor, mask_flag, z_node], dim=1)
-        h = self.in_proj(h)
+        """
+        anchor:     [N, anchor_dim]
+        mask_flag:  [N, 1]
+        z:          [B, hidden]      （root_pool の出力）
+        edge_index: [2, E]
+        batch:      [N]              各ノード→グラフID（0..B-1）
+
+        return:
+            x_hat: [N, out_dim]      再構成されたノード特徴
+        """
+        # 1) z を各ノードへブロードキャスト：ノード i は batch[i] のグラフ潜在を受け取る
+        z_node = z[batch]  # [N, hidden]
+
+        # 2) 復元の手掛かりをまとめて hidden に射影
+        #    ここで「見せて良い情報（anchor）」と「隠した位置（mask_flag）」と
+        #    「グラフ全体のコンテキスト（z_node）」を融合する
+        h = torch.cat([anchor, mask_flag, z_node], dim=1)  # [N, anchor_dim+1+hidden]
+        h = self.in_proj(h)                                # [N, hidden]
+
+        # 3) 木構造に沿った往復MP（Down→Up）を num_rounds 回
+        #    ノード間で一貫性のある復元を行う（局所だけでなく木全体の整合を反映）
         for layer in self.layers:
-            h = layer(h, edge_index)
-        x_hat = self.out_proj(h)
-        return x_hat  # [N, out_dim]
+            h = layer(h, edge_index)  # [N, hidden] → [N, hidden]
+
+        # 4) 元の特徴次元へ戻す（再構成）
+        x_hat = self.out_proj(h)  # [N, out_dim]
+        return x_hat
 
 # ---------- 全体：Masked Graph Autoencoder ----------
 #マスク生成→エンコード→プール→デコード→損失ターゲット選択までを一括で行う。
