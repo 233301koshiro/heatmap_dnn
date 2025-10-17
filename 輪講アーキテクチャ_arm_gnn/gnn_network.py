@@ -201,14 +201,24 @@ class TrainCfg:
 #損失は推定値と真値のMSE
 #マスクしたやつを再現した値を検査する
 #そもそもマスクするかどうかはconfigで指定
+# 
+# def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict) -> torch.Tensor:
+    # if "recon_target_idx" in out:
+        # idx = out["recon_target_idx"]
+        # return F.mse_loss(x_hat[idx], x_true[idx])
+    # else:
+        # return F.mse_loss(x_hat, x_true)
+
+#損失関数の第２候補SmoothL1Loss
+#smoothL1LossはMSEとMAEの中間的な性質を持つ損失関数
 def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict) -> torch.Tensor:
+    beta = 1.0  # Huberのしきい値
     if "recon_target_idx" in out:
         idx = out["recon_target_idx"]
-        return F.mse_loss(x_hat[idx], x_true[idx])
+        return F.smooth_l1_loss(x_hat[idx], x_true[idx], beta=beta)
     else:
-        return F.mse_loss(x_hat, x_true)
-
-
+        return F.smooth_l1_loss(x_hat, x_true, beta=beta)
+    
 # ---------- 学習ループなので一番大きな流れ ----------
 def train_one_epoch(model: nn.Module, loader, device, cfg: TrainCfg):
     model.train()#学習モードに切り替え
@@ -245,9 +255,10 @@ def train_one_epoch(model: nn.Module, loader, device, cfg: TrainCfg):
         opt.zero_grad()#勾配初期化
         loss.backward()#逆伝播で勾配計算
 
+        #clip_grad_norm_は勾配のノルムを制限する関数。勾配爆発を防ぐために使われる。
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
-        nn.utils.clip_grad_norm_(model.parameters(), 1.0)#勾配クリッピング
+        #nn.utils.clip_grad_norm_(model.parameters(), 1.0)#勾配クリッピング
         opt.step()#パラメータ更新
 
         total += float(loss.item()) * data.num_graphs#バッチの損失を累積

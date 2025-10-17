@@ -75,24 +75,42 @@ for p in train_list:
 if len(dataset) == 0:
     raise RuntimeError("有効なデータが0件です。URDFや抽出設定を見直してください。")
 
+# ====== 特徴量標準化（全データの平均/標準偏差で）=============================
+#正規化によって1ロボットの特徴量の単位の違いを吸収
+#標準化によってロボットの大きさの違いを 吸収
+allX = torch.cat([d.x for d in dataset], dim=0)        # [sum_nodes, F]
+mean = allX.mean(dim=0, keepdim=True)
+std  = allX.std(dim=0, keepdim=True).clamp_min(1e-6)
+for d in dataset:
+    d.x = (d.x - mean) / std
+
+
 # ====== train/val/test 分割 ======
 random.seed(0); torch.manual_seed(0)
 N = len(dataset)
 idx = list(range(N)); random.shuffle(idx)
 
-# 極小データでも val/test を 1 件以上確保
-n_tr = int(N * 0.8)
-n_va = int(N * 0.1)
-# 下限を設定
-n_va = max(1, n_va)
-n_te = max(1, N - (n_tr + n_va))
-# 足りない/はみ出しを調整
-if n_tr + n_va + n_te > N:
-    n_tr = max(1, N - (1 + 1))  # val=1, test=1 を最低確保
-    n_va = 1
-    n_te = 1
+# 目標比率
+p_tr, p_va = 0.7, 0.2
 
-tr_idx, va_idx, te_idx = idx[:n_tr], idx[n_tr:n_tr+n_va], idx[n_tr+n_va:n_tr+n_va+n_te]
+# まず切る（下限1を考慮しつつ）
+n_tr = max(1, int(N * p_tr))
+n_va = max(1, int(N * p_va))
+
+# はみ出しを抑えて、残りを test に回す
+# n_te は必ず 0 以上にし、合計を N に合わせる
+if n_tr + n_va > N - 1:
+    n_va = max(1, N - 1 - n_tr)
+    if n_va < 1:          # まだダメなら train を削って調整
+        n_tr = max(1, N - 2)
+        n_va = 1
+
+n_te = N - n_tr - n_va    # ここで必ず合計が N になる（n_te>=0保証）
+
+# スライス
+tr_idx = idx[:n_tr]
+va_idx = idx[n_tr:n_tr+n_va]
+te_idx = idx[n_tr+n_va:]
 
 train_set = [dataset[i] for i in tr_idx]
 val_set   = [dataset[i] for i in va_idx]
@@ -122,7 +140,7 @@ model = MaskedTreeAutoencoder(
 ).to(device)
 
 # AE 用 Train 設定：recon_only_masked=True なら「マスク行だけ」で誤差を計算
-cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=100, recon_only_masked=True)
+cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=150, recon_only_masked=True)
 
 # ====== ログ/チェックポイント ===============================================
 os.makedirs("checkpoints", exist_ok=True)
@@ -134,21 +152,41 @@ if not os.path.exists(log_csv):
     with open(log_csv, "w", newline="") as f:
         csv.writer(f).writerow(["epoch", "train_recon", "val_recon", "sec"])
 
-# ====== 学習ループ（再構成誤差で監視）======================================
+# ====== 早停つき学習ループ ==============================================
+best_val = float("inf")
+bad = 0
+#valがたった2サンプルしかないので1サンプルの誤差変動
+# 早停しないように緩めに設定
+patience = 20
+min_delta = 1e-4
+
 for epoch in range(1, cfg.epochs + 1):
     t0 = time.time()
+    #early stopは学習ループの最後で判定
+    #判定基準は検証誤差の改善有無
+    # 1) 学習1エポック
     train_recon = train_one_epoch(model, train_loader, device, cfg)
-    # 評価はマスクのみで見るか（True）/全ノードで見るか（False）は好み
-    val_recon   = eval_loss(model, val_loader, device, recon_only_masked=True)
 
+    # 2) 検証（安定さ重視なら recon_only_masked=False でも可）
+    val_recon = eval_loss(model, val_loader, device, recon_only_masked=True)
+
+    # 3) ログ表示
     print(f"epoch {epoch:03d} | train {train_recon:.4f} | val {val_recon:.4f} | {time.time()-t0:.1f}s")
 
+    # 4) CSV 追記
+    if not os.path.exists(log_csv):
+        with open(log_csv, "w", newline="") as f:
+            csv.writer(f).writerow(["epoch", "train_recon", "val_recon", "sec"])
     with open(log_csv, "a", newline="") as f:
         csv.writer(f).writerow([epoch, f"{train_recon:.6f}", f"{val_recon:.6f}", f"{time.time()-t0:.2f}"])
 
-    # ベスト更新でフル保存
-    if val_recon < best_val:
+    # 5) ベスト更新チェック＆保存
+    improved = val_recon < best_val - min_delta
+    if improved:
         best_val = val_recon
+        bad = 0
+
+        # フルチェックポイント（optimizer含む）
         ckpt = {
             "epoch": epoch,
             "model_state": model.state_dict(),
@@ -158,14 +196,22 @@ for epoch in range(1, cfg.epochs + 1):
             "timestamp": time.time(),
         }
         torch.save(ckpt, "checkpoints/masked_tree_ae_best.pt")
+    else:
+        bad += 1
+        if bad >= patience:
+            print(f"[early stop] no improvement for {patience} epochs at epoch {epoch}")
+            break
 
-    # いつも最新も保存（軽量）
+    # 6) 常に最新も保存（軽量）
     torch.save(model.state_dict(), "checkpoints/masked_tree_ae_latest.pth")
 
-# ====== テスト再構成誤差 ====================================================
+# ====== 学習後：ベストモデルをロードしてテスト =========================
+ckpt = torch.load("checkpoints/masked_tree_ae_best.pt", map_location=device)
+model.load_state_dict(ckpt["model_state"])
+
 test_recon = eval_loss(model, test_loader, device, recon_only_masked=True)
 print(f"[TEST] recon_only_masked=True | recon={test_recon:.4f}")#1nodeだけマスクして評価はそのノードだけで誤差計算
 
-# 安定性を見たい場合は全ノードでも
+# 安定性チェック用（任意）
 test_recon_all = eval_loss(model, test_loader, device, recon_only_masked=False)
 print(f"[TEST] recon_only_masked=False | recon={test_recon_all:.4f}")#1nodeだけマスクして評価は全ノードで誤差計算
