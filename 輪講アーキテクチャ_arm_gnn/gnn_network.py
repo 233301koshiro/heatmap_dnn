@@ -244,6 +244,9 @@ def train_one_epoch(model: nn.Module, loader, device, cfg: TrainCfg):
 
         opt.zero_grad()#勾配初期化
         loss.backward()#逆伝播で勾配計算
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
         nn.utils.clip_grad_norm_(model.parameters(), 1.0)#勾配クリッピング
         opt.step()#パラメータ更新
 

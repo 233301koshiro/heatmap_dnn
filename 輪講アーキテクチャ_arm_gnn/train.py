@@ -122,7 +122,7 @@ model = MaskedTreeAutoencoder(
 ).to(device)
 
 # AE 用 Train 設定：recon_only_masked=True なら「マスク行だけ」で誤差を計算
-cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=50, recon_only_masked=True)
+cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=100, recon_only_masked=True)
 
 # ====== ログ/チェックポイント ===============================================
 os.makedirs("checkpoints", exist_ok=True)
@@ -164,8 +164,8 @@ for epoch in range(1, cfg.epochs + 1):
 
 # ====== テスト再構成誤差 ====================================================
 test_recon = eval_loss(model, test_loader, device, recon_only_masked=True)
-print(f"[TEST] recon_only_masked=True | recon={test_recon:.4f}")
+print(f"[TEST] recon_only_masked=True | recon={test_recon:.4f}")#1nodeだけマスクして評価はそのノードだけで誤差計算
 
 # 安定性を見たい場合は全ノードでも
 test_recon_all = eval_loss(model, test_loader, device, recon_only_masked=False)
-print(f"[TEST] recon_only_masked=False | recon={test_recon_all:.4f}")
+print(f"[TEST] recon_only_masked=False | recon={test_recon_all:.4f}")#1nodeだけマスクして評価は全ノードで誤差計算
