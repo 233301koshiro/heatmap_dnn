@@ -144,6 +144,7 @@ model = MaskedTreeAutoencoder(
     anchor_idx=None,
 ).to(device)
 
+model._cfg = cfg  # 型情報保持用
 # AE 用 Train 設定：recon_only_masked=True なら「マスク行だけ」で誤差を計算
 #cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=150, recon_only_masked=True)
 
@@ -209,9 +210,13 @@ for epoch in range(1, cfg.epochs + 1):
 ckpt = torch.load("checkpoints/masked_tree_ae_best.pt", map_location=device)
 model.load_state_dict(ckpt["model_state"])
 
-test_recon = eval_loss(model, test_loader, device, recon_only_masked=True)
-print(f"[TEST] recon_only_masked=True | recon={test_recon:.4f}")#1nodeだけマスクして評価はそのノードだけで誤差計算
 
-# 安定性チェック用（任意）
-test_recon_all = eval_loss(model, test_loader, device, recon_only_masked=False)
-print(f"[TEST] recon_only_masked=False | recon={test_recon_all:.4f}")#1nodeだけマスクして評価は全ノードで誤差計算
+if MASK_MODE == 'none':
+    test_recon_all = eval_loss(model, test_loader, device, recon_only_masked=False, mask_strategy=MASK_MODE)
+    print(f"[TEST] recon={test_recon_all:.4f}")
+else:
+    test_recon = eval_loss(model, test_loader, device, recon_only_masked=True, mask_strategy=MASK_MODE)
+    print(f"[TEST] recon_only_masked=True | recon={test_recon:.4f}")#1nodeだけマスクして評価はマスクノードのみで誤差計算
+
+    test_recon_all = eval_loss(model, test_loader, device, recon_only_masked=False, mask_strategy=MASK_MODE)
+    print(f"[TEST] recon_only_masked=False | recon={test_recon_all:.4f}")#1nodeだけマスクして評価は全ノードで誤差計算

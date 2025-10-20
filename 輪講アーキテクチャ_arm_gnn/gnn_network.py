@@ -17,19 +17,18 @@ def mlp(sizes: List[int], dropout: float = 0.1) -> nn.Sequential:
             layers += [nn.ReLU(), nn.LayerNorm(sizes[i+1]), nn.Dropout(dropout)]
     return nn.Sequential(*layers)
 
-#マスクをせずにオートエンコーダとしての機能を検証する場合などに使う
+#maskする場合はどのノードをマスクするかを決め，しない場合はNoneを返す
 def choose_mask_idx(data, device, strategy: str):
     if strategy == 'none':
         return None
-    # 'one': 各グラフから1ノードランダム
+    #バッチ中の各グラフのノードインデックスを取得
     uniq = torch.unique(getattr(data, "batch", torch.zeros(data.num_nodes, dtype=torch.long, device=device)))
-    chosen = []
-    for b in uniq.tolist():
-        idx = (data.batch == b).nonzero(as_tuple=False).view(-1)
-        if idx.numel() > 0:
-            chosen.append(idx[torch.randint(0, idx.numel(), (1,))].item())
+    chosen = []#マスクするノードインデックスのリスト
+    for b in uniq.tolist():#maskするノードのリストを作成
+        idx = (data.batch == b).nonzero(as_tuple=False).view(-1)#そのグラフのノードインデックス
+        if idx.numel() > 0:#ノードが存在する場合
+            chosen.append(idx[torch.randint(0, idx.numel(), (1,))].item())#ランダムに1ノード選択してマスクリストに追加
     return torch.tensor(chosen, device=device, dtype=torch.long) if len(chosen) > 0 else None
-
 
 # ---------- 木向け 往復パス ----------
 class DownUpLayer(nn.Module):
@@ -249,17 +248,11 @@ def train_one_epoch(model: nn.Module, loader, device, cfg: TrainCfg):
 
         # 各グラフから1ノードをランダムマスク（0パディング）する
         with torch.no_grad():#勾配計算を無効化してメモリ節約
-            # バッチ中の各グラフのノードインデックスを取得
-            uniq = torch.unique(data.batch if hasattr(data, "batch") else torch.zeros(data.num_nodes, dtype=torch.long, device=device))
-            
-            chosen = []# マスクするノードインデックスのリスト
-            for b in uniq.tolist():#maskするノードのリストを作成
-                idx = (data.batch == b).nonzero(as_tuple=False).view(-1)#そのグラフのノードインデックス
-                if idx.numel() > 0:#ノードが存在する場合
-                    chosen.append(idx[torch.randint(0, idx.numel(), (1,))].item())#ランダムに1ノード選択してマスクリストに追加
+            mask_idx = choose_mask_idx(data, device, cfg.mask_strategy) # マスクノードインデックスのテンソルを作成
+        x_hat, out = model(data, mask_idx=mask_idx, recon_only_masked=cfg.recon_only_masked)
 
-            # マスクノードインデックスのテンソルを作成
-            mask_idx = torch.tensor(chosen, device=device, dtype=torch.long) if len(chosen) > 0 else None
+
+
 
         # 順伝播と損失計算
         #TreeAutoencoderのforward関数はここで呼ばれる
@@ -283,31 +276,27 @@ def train_one_epoch(model: nn.Module, loader, device, cfg: TrainCfg):
 
 # ---------- 評価ループ ----------
 @torch.no_grad()#@とはデコレータのこと。関数の前に置くことで、その関数内での勾配計算を無効化する
-def eval_loss(model: nn.Module, loader, device, recon_only_masked: bool = True):
-    model.eval()#評価モードに切り替え
-    total, n = 0.0, 0#ノード数
+def eval_loss(model: nn.Module, loader, device, **override):
+    model.eval()
+    total, n = 0.0, 0
 
-    #ここの流れはtrain_one_epochと一緒
+    # モデルに持たせた cfg を読む（なければデフォルト）
+    cfg = getattr(model, "_cfg", None)
+    recon_only_masked = (cfg.recon_only_masked if cfg is not None else True)
+    mask_strategy     = (getattr(cfg, "mask_strategy", 'one') if cfg is not None else 'one')
+
+    # ★旧シグネチャからの上書きに対応（後方互換）
+    if "recon_only_masked" in override:
+        recon_only_masked = override["recon_only_masked"]
+    if "mask_strategy" in override:
+        mask_strategy = override["mask_strategy"]
+
     for data in loader:
         data = data.to(device)
-
-        #ここもtrain_one_epochと一緒
-        with torch.no_grad():
-            uniq = torch.unique(data.batch if hasattr(data, "batch") else torch.zeros(data.num_nodes, dtype=torch.long, device=device))
-            chosen = []
-            for b in uniq.tolist():
-                idx = (data.batch == b).nonzero(as_tuple=False).view(-1)
-                if idx.numel() > 0:
-                    chosen.append(idx[torch.randint(0, idx.numel(), (1,))].item())
-            mask_idx = torch.tensor(chosen, device=device, dtype=torch.long) if len(chosen) > 0 else None
-
+        mask_idx = choose_mask_idx(data, device, mask_strategy)  # ← 必要。未実装なら下に定義して
         x_hat, out = model(data, mask_idx=mask_idx, recon_only_masked=recon_only_masked)
-
-        
-        #グラフが再現できているかの損失計算
         loss = loss_reconstruction(x_hat, data.x, out)
         total += float(loss.item()) * data.num_graphs
-        n += data.num_graphs#最終的にnはデータセットのグラフ数になる
-
-        #逆伝播とかはない
+        n += data.num_graphs
     return total / max(1, n)
+
