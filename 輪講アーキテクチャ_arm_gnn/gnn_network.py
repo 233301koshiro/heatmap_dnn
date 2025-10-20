@@ -34,12 +34,12 @@ def choose_mask_idx(data, device, strategy: str):
 class DownUpLayer(nn.Module):
     #Tree_encoderとTree_decoderでmlpの後に使われるこれこそがGNNの本体
     #木構造に沿ったGINConvを使った往復伝播を行う
-    def __init__(self, hidden: int, dropout: float = 0.1):
+    def __init__(self, hidden: int, bottleneck_dim: int,dropout: float = 0.1):
         super().__init__()
         #GINConvは「近傍の特徴を和で集めてMLPに渡す」だけのシンプルなGNNレイヤ
         #downとupの記述が同じだが、パラメータは別々
-        self.down = GINConv(mlp([hidden, hidden, hidden], dropout=dropout), train_eps=True)
-        self.up   = GINConv(mlp([hidden, hidden, hidden], dropout=dropout), train_eps=True)
+        self.down = GINConv(mlp([hidden, bottleneck_dim, hidden], dropout=dropout), train_eps=True)
+        self.up   = GINConv(mlp([hidden, bottleneck_dim, hidden], dropout=dropout), train_eps=True)
         self.ln1 = nn.LayerNorm(hidden)
         self.ln2 = nn.LayerNorm(hidden)
         self.dir_emb = nn.Parameter(torch.randn(2, hidden) * 0.02)  # [down, up]
@@ -85,14 +85,17 @@ def root_pool(x: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor, ro
 # ---------- エンコーダ ----------
 #ノード特徴 + マスク情報を木構造に沿って集約し、各ノード埋め込み→グラフ潜在へつなぐ前段の表現づくり。
 class TreeEncoder(nn.Module):
-    def __init__(self, in_dim: int, hidden: int = 128, num_rounds: int = 2, dropout: float = 0.1):
+    def __init__(self, in_dim: int, hidden: int = 128, num_rounds: int = 2,dropout: float = 0.1, bottleneck_dim: int = 64):
         super().__init__()
         #入力をhidden次元に変換
         #projはprojectionで射影・次元変換を意味する
-        self.in_proj = mlp([in_dim, hidden], dropout=dropout)
+        self.in_proj = mlp([in_dim, bottleneck_dim, hidden], dropout=dropout)
 
         #木構造に沿った往復伝播を複数回行う
-        self.layers = nn.ModuleList([DownUpLayer(hidden, dropout=dropout) for _ in range(num_rounds)])
+        self.layers = nn.ModuleList([
+            DownUpLayer(hidden, bottleneck_dim=bottleneck_dim, dropout=dropout)
+            for _ in range(num_rounds)
+        ])
 
     #順伝播
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
@@ -106,7 +109,8 @@ class TreeEncoder(nn.Module):
 # ---------- デコーダ（zをbroadcastし、木MPで展開→元の次元に） ----------
 #グラフ潜在を各ノードに展開し、元のノード特徴を再構成する。
 class TreeDecoder(nn.Module):
-    def __init__(self, anchor_dim: int, hidden: int = 128, num_rounds: int = 2, dropout: float = 0.1, out_dim: int = 19):
+    def __init__(self, anchor_dim: int, hidden: int = 128, num_rounds: int = 2,
+                 dropout: float = 0.1, out_dim: int = 19, bottleneck_dim: int = 64):
         super().__init__()
         # 入力は [anchor, mask_flag, z_node] を結合して hidden へ射影する。
         # - anchor     : [N, anchor_dim]  復元の“手掛かり”にして良い列（構造メタ等）
@@ -114,15 +118,18 @@ class TreeDecoder(nn.Module):
         # - z_node     : [N, hidden]      グラフ潜在 z を各ノードに貼り付けたもの
         # 合計列次元は anchor_dim + 1 + hidden
 
-        self.in_proj = mlp([anchor_dim + 1 + hidden, hidden], dropout=dropout)
+        self.in_proj = mlp([anchor_dim + 1 + hidden, bottleneck_dim, hidden], dropout=dropout)
+    
 
         # Encoder 同様、木構造に沿った往復伝播（Down→Up）を複数回
         # 形は常に [N, hidden] を保つ（情報だけが濃くなる）
-        self.layers = nn.ModuleList([DownUpLayer(hidden, dropout=dropout) for _ in range(num_rounds)])
-        
+        self.layers = nn.ModuleList([
+            DownUpLayer(hidden, bottleneck_dim=bottleneck_dim, dropout=dropout)
+            for _ in range(num_rounds)
+        ])
         # 最終的に hidden → out_dim（=元のノード特徴次元）へ戻すプロジェクタ
         # 例: [N, hidden] → [N, hidden] → [N, out_dim]
-        self.out_proj = mlp([hidden, hidden, out_dim], dropout=dropout)
+        self.out_proj = mlp([hidden, bottleneck_dim, out_dim], dropout=dropout)
 
     def forward(self, anchor: torch.Tensor, mask_flag: torch.Tensor, z: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
         """
@@ -156,17 +163,24 @@ class TreeDecoder(nn.Module):
 # ---------- 全体：Masked Graph Autoencoder ----------
 #マスク生成→エンコード→プール→デコード→損失ターゲット選択までを一括で行う。
 class MaskedTreeAutoencoder(nn.Module):
-    def __init__(self, in_dim: int = 19, hidden: int = 128, enc_rounds: int = 2, dec_rounds: int = 2, dropout: float = 0.1, anchor_idx: Optional[slice] = None):
+    def __init__(self, in_dim: int = 19, hidden: int = 128, bottleneck_dim: int = 64,
+                 enc_rounds: int = 2, dec_rounds: int = 2, dropout: float = 0.1,
+                 anchor_idx: Optional[slice] = None):
         super().__init__()
         self.in_dim = in_dim
         self.hidden = hidden
-        #
-        self.encoder = TreeEncoder(in_dim + 1, hidden, enc_rounds, dropout)   # +1 は mask_flag
+        self.bottleneck_dim = bottleneck_dim
+
+        self.encoder = TreeEncoder(
+            in_dim + 1, hidden, enc_rounds, dropout, bottleneck_dim=bottleneck_dim
+        )  # +1 は mask_flag
+
         self.decoder = TreeDecoder(
-            anchor_dim = (in_dim if anchor_idx is None else (anchor_idx.stop - anchor_idx.start)),
-            hidden = hidden, num_rounds = dec_rounds, dropout = dropout, out_dim = in_dim
+            anchor_dim=(in_dim if anchor_idx is None else (anchor_idx.stop - anchor_idx.start)),
+            hidden=hidden, num_rounds=dec_rounds, dropout=dropout, out_dim=in_dim,
+            bottleneck_dim=bottleneck_dim
         )
-        self.anchor_idx = anchor_idx  # 復元の“位置手掛かり”に使う列（例：deg/depth/jtype など）
+        self.anchor_idx = anchor_idx
 
     def forward(self, data: Data, mask_idx: Optional[torch.Tensor] = None, recon_only_masked: bool = True) -> Tuple[torch.Tensor, dict]:
         x, ei = data.x, data.edge_index

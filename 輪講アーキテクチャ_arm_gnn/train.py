@@ -138,6 +138,7 @@ in_node = train_set[0].num_node_features  # 例: 19
 model = MaskedTreeAutoencoder(
     in_dim=in_node,
     hidden=128,
+    bottleneck_dim = 64,
     enc_rounds=2,
     dec_rounds=2,
     dropout=0.1,
