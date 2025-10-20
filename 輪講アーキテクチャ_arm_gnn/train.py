@@ -15,7 +15,12 @@ from gnn_network import (
     train_one_epoch,    
     eval_loss          
 )
+#1ノードマスクしたいとき
+MASK_MODE = 'one'
+#オートエンコーダ用の何もマスクしない
+MASK_MODE = 'none'
 
+cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=150, recon_only_masked=True, mask_strategy=MASK_MODE)
 # ====== URDF → PyG Data 変換 =================================================
 def build_data(urdf_path: str) -> Data:
     """
@@ -140,22 +145,21 @@ model = MaskedTreeAutoencoder(
 ).to(device)
 
 # AE 用 Train 設定：recon_only_masked=True なら「マスク行だけ」で誤差を計算
-cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=150, recon_only_masked=True)
+#cfg = TrainCfg(lr=1e-3, weight_decay=1e-4, epochs=150, recon_only_masked=True)
 
 # ====== ログ/チェックポイント ===============================================
+#このcsvには epochごとの train/val loss を保存していく
 os.makedirs("checkpoints", exist_ok=True)
 log_csv = "checkpoints/ae_train_log.csv"
 best_val = float("inf")
 
-if not os.path.exists(log_csv):
-    import csv
-    with open(log_csv, "w", newline="") as f:
-        csv.writer(f).writerow(["epoch", "train_recon", "val_recon", "sec"])
+with open(log_csv, "w", newline="") as f:
+    csv.writer(f).writerow(["epoch", "train_recon", "val_recon", "sec"])
 
 # ====== 早停つき学習ループ ==============================================
 best_val = float("inf")
 bad = 0
-#valがたった2サンプルしかないので1サンプルの誤差変動
+#valがたった5で1サンプルの誤差変動が大きい
 # 早停しないように緩めに設定
 patience = 20
 min_delta = 1e-4
@@ -173,10 +177,6 @@ for epoch in range(1, cfg.epochs + 1):
     # 3) ログ表示
     print(f"epoch {epoch:03d} | train {train_recon:.4f} | val {val_recon:.4f} | {time.time()-t0:.1f}s")
 
-    # 4) CSV 追記
-    if not os.path.exists(log_csv):
-        with open(log_csv, "w", newline="") as f:
-            csv.writer(f).writerow(["epoch", "train_recon", "val_recon", "sec"])
     with open(log_csv, "a", newline="") as f:
         csv.writer(f).writerow([epoch, f"{train_recon:.6f}", f"{val_recon:.6f}", f"{time.time()-t0:.2f}"])
 

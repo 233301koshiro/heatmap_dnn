@@ -17,6 +17,20 @@ def mlp(sizes: List[int], dropout: float = 0.1) -> nn.Sequential:
             layers += [nn.ReLU(), nn.LayerNorm(sizes[i+1]), nn.Dropout(dropout)]
     return nn.Sequential(*layers)
 
+#マスクをせずにオートエンコーダとしての機能を検証する場合などに使う
+def choose_mask_idx(data, device, strategy: str):
+    if strategy == 'none':
+        return None
+    # 'one': 各グラフから1ノードランダム
+    uniq = torch.unique(getattr(data, "batch", torch.zeros(data.num_nodes, dtype=torch.long, device=device)))
+    chosen = []
+    for b in uniq.tolist():
+        idx = (data.batch == b).nonzero(as_tuple=False).view(-1)
+        if idx.numel() > 0:
+            chosen.append(idx[torch.randint(0, idx.numel(), (1,))].item())
+    return torch.tensor(chosen, device=device, dtype=torch.long) if len(chosen) > 0 else None
+
+
 # ---------- 木向け 往復パス ----------
 class DownUpLayer(nn.Module):
     #Tree_encoderとTree_decoderでmlpの後に使われるこれこそがGNNの本体
