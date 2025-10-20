@@ -210,6 +210,7 @@ class TrainCfg:
     weight_decay: float = 1e-4
     epochs: int = 50
     recon_only_masked: bool = True
+    mask_strategy: str = 'none'  # 'one' or 'none'
 
 # 損失計算：マスクノードのみ or 全ノード
 #損失は推定値と真値のMSE
