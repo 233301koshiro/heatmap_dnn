@@ -7,14 +7,15 @@ import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.nn import GINConv, AttentionalAggregation
 from torch_scatter import scatter_mean
+#nn.linerにおいて両方ののbiasをfにする変更
 
 # ---------- small MLP（BNなし、LN+Dropoutで安定） ----------
 def mlp(sizes: List[int], dropout: float = 0.1) -> nn.Sequential:
     layers = []
     for i in range(len(sizes) - 1):
-        layers.append(nn.Linear(sizes[i], sizes[i+1]))
+        layers.append(nn.Linear(sizes[i], sizes[i+1],bias=False))
         if i < len(sizes) - 2:
-            layers += [nn.ReLU(), nn.LayerNorm(sizes[i+1]), nn.Dropout(dropout)]
+            layers += [nn.LayerNorm(sizes[i+1]) ,nn.ReLU(), nn.Dropout(dropout)]#正規化してからReLU
     return nn.Sequential(*layers)
 
 #maskする場合はどのノードをマスクするかを決め，しない場合はNoneを返す
@@ -129,35 +130,33 @@ class TreeDecoder(nn.Module):
         ])
         # 最終的に hidden → out_dim（=元のノード特徴次元）へ戻すプロジェクタ
         # 例: [N, hidden] → [N, hidden] → [N, out_dim]
-        self.out_proj = mlp([hidden, bottleneck_dim, out_dim], dropout=dropout)
+        #デコーダ末尾で128→16→19に絞る
+        #self.out_proj = mlp([hidden, bottleneck_dim, out_dim], dropout=dropout)
+        self.out_proj = mlp([hidden, 16, out_dim], dropout=dropout)#←lossは0.08くらいから0.3に増えてしまった
 
-    def forward(self, anchor: torch.Tensor, mask_flag: torch.Tensor, z: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
+    #def forward(self, anchor: torch.Tensor, mask_flag: torch.Tensor, z: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor) -> torch.Tensor:
+    def forward(self, anchor: torch.Tensor,
+            mask_flag: torch.Tensor,
+            node_context: torch.Tensor,
+            edge_index: torch.Tensor) -> torch.Tensor:
         """
-        anchor:     [N, anchor_dim]
-        mask_flag:  [N, 1]
-        z:          [B, hidden]      （root_pool の出力）
-        edge_index: [2, E]
-        batch:      [N]              各ノード→グラフID（0..B-1）
-
+        anchor:       [N, anchor_dim]
+        mask_flag:    [N, 1]
+        node_context: [N, hidden]  # encoder出力（各ノードの隠れ表現）
+        edge_index:   [2, E]
         return:
-            x_hat: [N, out_dim]      再構成されたノード特徴
+            x_hat: [N, out_dim]
         """
-        # 1) z を各ノードへブロードキャスト：ノード i は batch[i] のグラフ潜在を受け取る
-        z_node = z[batch]  # [N, hidden]
+        # 1) 復元の手掛かりをまとめて射影
+        h = torch.cat([anchor, mask_flag, node_context], dim=1)  # [N, anchor_dim+1+hidden]
+        h = self.in_proj(h)                                      # [N, hidden]
 
-        # 2) 復元の手掛かりをまとめて hidden に射影
-        #    ここで「見せて良い情報（anchor）」と「隠した位置（mask_flag）」と
-        #    「グラフ全体のコンテキスト（z_node）」を融合する
-        h = torch.cat([anchor, mask_flag, z_node], dim=1)  # [N, anchor_dim+1+hidden]
-        h = self.in_proj(h)                                # [N, hidden]
-
-        # 3) 木構造に沿った往復MP（Down→Up）を num_rounds 回
-        #    ノード間で一貫性のある復元を行う（局所だけでなく木全体の整合を反映）
+        # 2) 木メッセージパッシング
         for layer in self.layers:
-            h = layer(h, edge_index)  # [N, hidden] → [N, hidden]
+            h = layer(h, edge_index)                             # [N, hidden]
 
-        # 4) 元の特徴次元へ戻す（再構成）
-        x_hat = self.out_proj(h)  # [N, out_dim]
+        # 3) 出力へ（例：hidden→16→out_dim に変更済みならそのまま）
+        x_hat = self.out_proj(h)                                 # [N, out_dim]
         return x_hat
 
 # ---------- 全体：Masked Graph Autoencoder ----------
@@ -201,17 +200,23 @@ class MaskedTreeAutoencoder(nn.Module):
         #h_encはzを得るための中間表現
         h_enc = self.encoder(torch.cat([x, mask_flag], dim=1), ei)   # [N,H]
         #rootがあるかどうかでzの取り方を変える
-        z = root_pool(h_enc, ei, batch, root_index=root_index)       # [B,H]
+        #z = root_pool(h_enc, ei, batch, root_index=root_index)       # [B,H]
 
         # ---- Decoder：zを各ノードにbroadcastして木MPで展開、特徴を再構成 ----
         if self.anchor_idx is None:
             anchor = x
         else:
             anchor = x[:, self.anchor_idx]  # 位置/タイプの手掛かり用
-        x_hat = self.decoder(anchor, mask_flag, z, ei, batch)         # [N,in_dim]
+        #x_hat = self.decoder(anchor, mask_flag, z, ei, batch)
 
+        #root_poolを使わない書き方
+        h_enc = self.encoder(torch.cat([x, mask_flag], dim=1), ei)   # [N,H]
+        anchor = x if self.anchor_idx is None else x[:, self.anchor_idx]
+        x_hat = self.decoder(anchor, mask_flag, h_enc, ei)           # ← z,batch 渡さない
         # ---- 損失用の補助情報 ----
-        out = {"x_hat": x_hat, "mask_flag": mask_flag, "z": z}
+        #out = {"x_hat": x_hat, "mask_flag": mask_flag, "z": z}
+        #root_poolを使わない場合
+        out = {"x_hat": x_hat, "mask_flag": mask_flag, "node_context": h_enc}
         if recon_only_masked and mask_idx is not None and mask_idx.numel() > 0:
             out["recon_target_idx"] = mask_idx
         return x_hat, out

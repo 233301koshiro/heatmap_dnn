@@ -85,9 +85,9 @@ if len(dataset) == 0:
 #標準化によってロボットの大きさの違いを 吸収
 allX = torch.cat([d.x for d in dataset], dim=0)        # [sum_nodes, F]
 mean = allX.mean(dim=0, keepdim=True)
-std  = allX.std(dim=0, keepdim=True).clamp_min(1e-6)
-for d in dataset:
-    d.x = (d.x - mean) / std
+# std  = allX.std(dim=0, keepdim=True).clamp_min(1e-6)
+# for d in dataset:
+    # d.x = (d.x - mean) / std
 
 
 # ====== train/val/test 分割 ======
@@ -138,7 +138,7 @@ in_node = train_set[0].num_node_features  # 例: 19
 model = MaskedTreeAutoencoder(
     in_dim=in_node,
     hidden=128,
-    bottleneck_dim = 64,
+    bottleneck_dim = 128,
     enc_rounds=2,
     dec_rounds=2,
     dropout=0.1,
