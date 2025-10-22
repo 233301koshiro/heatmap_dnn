@@ -136,6 +136,36 @@ class TreeEncoder(nn.Module):
 # Decoder：anchor/mask_flag/node_context を結合 → DownUpLayer×K → out_proj
 # =========================================================
 class TreeDecoder(nn.Module):
+    def __init__(self, hidden: int = 128, num_rounds: int = 2,
+                 dropout: float = 0.1, out_dim: int = 19, bottleneck_dim: int = 128,
+                 use_mask_flag: bool = False):
+        super().__init__()
+        self.hidden = hidden
+        self.use_mask_flag = use_mask_flag
+        in_cat = (1 if self.use_mask_flag else 0) + hidden  # ← anchorを廃止
+        self.in_proj = mlp([in_cat, bottleneck_dim, hidden], dropout=dropout)
+
+        self.layers = nn.ModuleList([
+            DownUpLayer(hidden, bottleneck_dim=bottleneck_dim, dropout=dropout)
+            for _ in range(num_rounds)
+        ])
+        self.out_proj = mlp([hidden, 16, out_dim], dropout=dropout)
+
+    def forward(self,
+                mask_flag: Optional[torch.Tensor],    # [N,1] or None
+                node_context: torch.Tensor,           # [N, hidden]
+                edge_index: torch.Tensor) -> torch.Tensor:
+        if self.use_mask_flag:
+            if mask_flag is None:
+                mask_flag = node_context.new_zeros(node_context.size(0), 1)
+            h_in = torch.cat([mask_flag, node_context], dim=1)
+        else:
+            h_in = node_context
+        h = self.in_proj(h_in)
+        for layer in self.layers:
+            h = layer(h, edge_index)
+        return self.out_proj(h)
+
     def __init__(self, anchor_dim: int, hidden: int = 128, num_rounds: int = 2,
                  dropout: float = 0.1, out_dim: int = 19, bottleneck_dim: int = 128,
                  use_mask_flag: bool = False):
@@ -170,40 +200,29 @@ class TreeDecoder(nn.Module):
 # 全体：MaskedTreeAutoencoder（mask_flag の有無を切替可能）
 # =========================================================
 class MaskedTreeAutoencoder(nn.Module):
-    def __init__(self, in_dim: int = 19, hidden: int = 128, bottleneck_dim: int = 128,
-                 enc_rounds: int = 2, dec_rounds: int = 2, dropout: float = 0.1,
-                 anchor_idx: Optional[slice] = None,
-                 use_mask_flag: bool = True):  # ★ 追加：AE時は False にする
+    def __init__(self, in_dim=19, hidden=128, bottleneck_dim=128,
+                 enc_rounds=2, dec_rounds=2, dropout=0.1,
+                 mask_strategy: str = "none"):
         super().__init__()
-        self.in_dim = in_dim
-        self.hidden = hidden
-        self.bottleneck_dim = bottleneck_dim
-        self.anchor_idx = anchor_idx
-        self.use_mask_flag = use_mask_flag  # ← デバッグ表示にも利用
+        self.mask_strategy = mask_strategy
+        self.use_mask_flag = (mask_strategy != "none")
 
         enc_in = in_dim + (1 if self.use_mask_flag else 0)
-        self.encoder = TreeEncoder(enc_in, hidden, enc_rounds, dropout, bottleneck_dim=bottleneck_dim)
+        self.encoder = TreeEncoder(enc_in, hidden, enc_rounds, dropout, bottleneck_dim)
+        self.decoder = TreeDecoder(hidden=hidden, num_rounds=dec_rounds,
+                                   dropout=dropout, out_dim=in_dim,
+                                   bottleneck_dim=bottleneck_dim,
+                                   use_mask_flag=self.use_mask_flag)
 
-        anchor_dim = (in_dim if anchor_idx is None else (anchor_idx.stop - anchor_idx.start))
-        self.decoder = TreeDecoder(
-            anchor_dim=anchor_dim, hidden=hidden, num_rounds=dec_rounds,
-            dropout=dropout, out_dim=in_dim, bottleneck_dim=bottleneck_dim,
-            use_mask_flag=self.use_mask_flag
-        )
-
-    def forward(self, data: Data, mask_idx: Optional[torch.Tensor] = None, recon_only_masked: bool = True) -> Tuple[torch.Tensor, dict]:
+    def forward(self, data: Data, mask_idx: Optional[torch.Tensor] = None,
+                recon_only_masked: bool = True) -> Tuple[torch.Tensor, dict]:
         x, ei = data.x, data.edge_index
         device = x.device
-        batch = getattr(data, "batch", None)
-        if batch is None:
-            batch = x.new_zeros(x.size(0), dtype=torch.long)
-        root_index = getattr(data, "root_index", None)
 
-        # ---- デバッグ：どっちの経路？ ----
         mode = "MASK MODE (mask_flag 使用)" if self.use_mask_flag else "AE MODE (mask_flag 無し)"
         print(f"[MaskedTreeAE] forward: {mode} | N={x.size(0)}, F={x.size(1)}, E={ei.size(1)}")
 
-        # ---- 入力構築：mask_flag を付ける／付けない ----
+        # 入力構築
         if self.use_mask_flag:
             mask_flag = torch.zeros(x.size(0), 1, device=device)
             if mask_idx is not None and mask_idx.numel() > 0:
@@ -211,30 +230,23 @@ class MaskedTreeAutoencoder(nn.Module):
                 x[mask_idx] = 0.0
                 mask_flag[mask_idx] = 1.0
                 print(f"[MaskedTreeAE] masked nodes: {mask_idx.tolist()}")
-            enc_in = torch.cat([x, mask_flag], dim=1)   # [N, in_dim+1]
+            enc_in = torch.cat([x, mask_flag], dim=1)
         else:
             mask_flag = None
-            mask_idx = None  # AEモードでは実際にマスクしない
-            enc_in = x       # [N, in_dim]
+            mask_idx = None
+            enc_in = x
 
-        # ---- Encoder ----
-        h_enc = self.encoder(enc_in, ei)   # [N, hidden].self.encoderはインスタンス属性
-        # （使う場合のみ）root_pool でグラフ表現を作る
-        # z = root_pool(h_enc, ei, batch, root_index=root_index)  # [B, hidden]
+        # Encoder
+        h_enc = self.encoder(enc_in, ei)                # [N, hidden]
 
-        # ---- Decoder ----
-        anchor = x if self.anchor_idx is None else x[:, self.anchor_idx]
-        x_hat = self.decoder(anchor, mask_flag, h_enc, ei)
+        # Decoder（anchorは完全廃止）
+        x_hat = self.decoder(mask_flag, h_enc, ei)
 
-        out = {
-            "x_hat": x_hat,
-            "mask_flag": mask_flag,
-            "node_context": h_enc,
-            # "z": z,  # 使うなら展開
-        }
+        out = {"x_hat": x_hat, "mask_flag": mask_flag, "node_context": h_enc}
         if recon_only_masked and (mask_idx is not None) and (mask_idx.numel() > 0):
             out["recon_target_idx"] = mask_idx
         return x_hat, out
+
 
 # =========================================================
 # 学習用コンフィグ / 損失 / ループ

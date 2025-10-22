@@ -121,15 +121,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 in_node = train_set[0].num_node_features  # 例: 19
 #num_node_featuresというのはPyG Dataオブジェクトの属性で，各ノードの特徴量の次元数を表す
 
-model = MaskedTreeAutoencoder(#ここでモデルの構造を定義
-    in_dim=in_node,#入力特徴量次元数
-    hidden=128,#隠れ層次元数
-    bottleneck_dim = 128,#ボトルネック次元数
-    enc_rounds=2,#エンコーダの反復回数
-    dec_rounds=2,#デコーダの反復回数
-    dropout=0.1,#ドロップアウト率(ドロップアウトは過学習防止のための手法)
-    anchor_idx=None,#アンカー特徴量のインデックス（Noneなら全特徴量を使用する)特定列だけをアンカーにしたい時は slice(start, stop) を指定（例: slice(0,7)）
-).to(device)
+model = MaskedTreeAutoencoder(
+    in_dim=in_node, hidden=128, bottleneck_dim=128,
+    enc_rounds=2, dec_rounds=2, dropout=0.1,
+    mask_strategy=cfg.mask_strategy
+)
+model = model.to(device)
 model._cfg = cfg  # 型情報保持用
 #学習させたいわけじゃなくて学習途中のモデルのデータを追いたいのでlogはいらない
 
