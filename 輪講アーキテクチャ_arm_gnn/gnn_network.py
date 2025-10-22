@@ -147,6 +147,7 @@ class TreeDecoder(nn.Module):
         return:
             x_hat: [N, out_dim]
         """
+        
         # 1) 復元の手掛かりをまとめて射影
         h = torch.cat([anchor, mask_flag, node_context], dim=1)  # [N, anchor_dim+1+hidden]
         h = self.in_proj(h)                                      # [N, hidden]

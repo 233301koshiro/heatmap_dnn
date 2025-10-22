@@ -9,7 +9,9 @@ import networkx as nx
 import matplotlib
 matplotlib.use("Agg")  # ヘッドレス環境でPNG保存可
 import matplotlib.pyplot as plt
-
+import math
+from typing import List
+from torch_geometric.data import Data
 # ========== 設定 ==========
 @dataclass
 class ExtractConfig:
@@ -246,6 +248,162 @@ def to_pyg(S, node_list, X, edge_index, E, y: float | None = None):
     if y is not None:
         data.y = torch.tensor([y], dtype=torch.float32)
     return data
+
+# ====== Dataset デバッグユーティリティ ======================================
+
+def _normalize_spec(spec: str) -> str:
+    # ":.6g" → ".6g" に直す。空ならデフォルト ".6g"
+    if not spec:
+        return ".6g"
+    return spec[1:] if spec.startswith(":") else spec
+
+def minimal_graph_report(d: Data, max_nodes: int = 10, float_fmt=":.6g"):
+    name = getattr(d, "name", "(no name)")
+    print(f"=== GRAPH: {name} ===")
+    print(f"num_nodes: {d.num_nodes}  |  num_edges: {d.num_edges}")
+
+    if getattr(d, "x", None) is None:
+        print("[WARN] d.x (ノード特徴) がありません。")
+        return
+
+    F = d.x.size(1)
+    feat_names = getattr(d, "feature_names", None)
+    if not feat_names or len(feat_names) != F:
+        feat_names = [f"f{i}" for i in range(F)]
+
+    node_names = getattr(d, "node_names", None)
+    show_n = d.num_nodes if max_nodes is None else min(d.num_nodes, max_nodes)
+    x = d.x.detach().cpu()
+
+    spec = _normalize_spec(float_fmt)
+
+    # 文字列化（先に全行作って幅決定）
+    rows = []
+    for i in range(show_n):
+        row = [str(i)]
+        if node_names is not None:
+            row.append(str(node_names[i]))
+
+        cells = []
+        for v in x[i].tolist():
+            fv = float(v)
+            if math.isnan(fv):
+                cells.append("NaN")
+            elif math.isinf(fv):
+                cells.append("Inf" if fv > 0 else "-Inf")
+            else:
+                cells.append(format(fv, spec))
+        row += cells
+        rows.append(row)
+
+    headers = ["node_index"]
+    if node_names is not None:
+        headers.append("node_name")
+    headers += feat_names
+
+    # 列幅
+    ncols = len(headers)
+    col_widths = [len(h) for h in headers]
+    for r in rows:
+        for c, cell in enumerate(r):
+            col_widths[c] = max(col_widths[c], len(cell))
+
+    def fmt_cell(cidx, text):
+        # node_index: 右寄せ, node_name: 左寄せ, それ以外: 右寄せ
+        if cidx == 0:
+            return f"{text:>{col_widths[cidx]}}"
+        if node_names is not None and cidx == 1:
+            return f"{text:<{col_widths[cidx]}}"
+        return f"{text:>{col_widths[cidx]}}"
+
+    def rule():
+        print("-" * (sum(col_widths) + 3 * (ncols - 1)))
+
+    rule()
+    print(" | ".join(fmt_cell(i, h) for i, h in enumerate(headers)))
+    rule()
+    for r in rows:
+        print(" | ".join(fmt_cell(i, cell) for i, cell in enumerate(r)))
+    if show_n < d.num_nodes:
+        print(f"... (showing {show_n}/{d.num_nodes} nodes)")
+    rule()
+
+def minimal_dataset_report(dataset: List[Data], max_graphs: int = 1, max_nodes: int = 20, float_fmt=":.6g"):
+    total = len(dataset)
+    print(f"[dataset] total graphs: {total}")
+    for gi, d in enumerate(dataset[:max_graphs]):
+        print(f"\n--- Graph {gi} / {total-1} ---")
+        minimal_graph_report(d, max_nodes=max_nodes, float_fmt=float_fmt)
+
+
+def debug_edge_index(data, k: int = 10, title: str = ""):
+    """
+    edge_index の中身を human-readable にダンプする。
+    - 先頭 k 本、末尾 k 本の (src→dst) を表示（E < 2k の場合は全件）。
+    - batch があれば各ノードの graph_id も表示。
+    """
+    debug_edge_index(data, k=20, title=f"{tag} step {step}", show_up_first=0)
+    ei = data.edge_index
+    assert ei.dim() == 2 and ei.size(0) == 2, f"edge_index shape must be [2, E], got {tuple(ei.shape)}"
+    E = ei.size(1)
+    print(f"\n[edge_index dump] {title}  shape={tuple(ei.shape)}  E={E}")
+
+    # CPU に持ってきて扱いやすく
+    src = ei[0].detach().cpu()
+    dst = ei[1].detach().cpu()
+
+    # どれだけ表示するか（被り防止）
+    if E <= 2 * k:
+        idxs = list(range(E))
+        head_end_split = E  # 全件表示
+    else:
+        idxs = list(range(k)) + list(range(E - k, E))
+        head_end_split = k  # 先頭k/末尾kで区切る
+
+    # batch（各ノードの属する graph_id）があれば併記
+    b = getattr(data, "batch", None)
+    if b is not None:
+        b = b.detach().cpu()
+
+    # ヘッダ
+    if b is None:
+        print(" index | src -> dst")
+        print("-------+----------------")
+    else:
+        print(" index | src(g) -> dst(g)")
+        print("-------+-------------------")
+
+    # 本体
+    for i, j in enumerate(idxs):
+        if i == head_end_split and E > 2 * k:
+            print("  ...  |  (skipped middle)")
+
+        s = int(src[j]); d = int(dst[j])
+        if b is None:
+            print(f"{j:6d} | {s} -> {d}")
+        else:
+            gs = int(b[s]); gd = int(b[d])
+            print(f"{j:6d} | {s}({gs}) -> {d}({gd})")
+
+    # 片方向/反転の確認用に up の最初の数本だけも表示（任意）
+    rev = ei[[1, 0]]
+    rsrc = rev[0].detach().cpu(); rdst = rev[1].detach().cpu()
+    show_r = min(k, E)
+    print(f"\n[edge_index^T (up)] show first {show_r}:")
+    for j in range(show_r):
+        s = int(rsrc[j]); d = int(rdst[j])
+        if b is None:
+            print(f"{j:6d} | {s} -> {d}")
+        else:
+            gs = int(b[s]); gd = int(b[d])
+            print(f"{j:6d} | {s}({gs}) -> {d}({gd})")
+
+def print_step_header(step: int, tag: str = "train"):
+    print(f"\n===== {tag.upper()} STEP {step} =====")
+
+def print_step_footer(step: int, tag: str = "train"):
+    print(f"===== END {tag.upper()} STEP {step} =====\n")
+
 
 # ------------------------------------------------------------------
 # 使い方メモ:
