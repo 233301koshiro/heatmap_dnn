@@ -166,35 +166,6 @@ class TreeDecoder(nn.Module):
             h = layer(h, edge_index)
         return self.out_proj(h)
 
-    def __init__(self, anchor_dim: int, hidden: int = 128, num_rounds: int = 2,
-                 dropout: float = 0.1, out_dim: int = 19, bottleneck_dim: int = 128,
-                 use_mask_flag: bool = False):
-        super().__init__()
-        self.hidden = hidden
-        self.use_mask_flag = use_mask_flag
-        in_cat = anchor_dim + (1 if self.use_mask_flag else 0) + hidden
-        self.in_proj = mlp([in_cat, bottleneck_dim, hidden], dropout=dropout)
-
-        self.layers = nn.ModuleList([
-            DownUpLayer(hidden, bottleneck_dim=bottleneck_dim, dropout=dropout)
-            for _ in range(num_rounds)
-        ])
-        self.out_proj = mlp([hidden, 16, out_dim], dropout=dropout)
-
-    def forward(self,
-                anchor: torch.Tensor,                 # [N, anchor_dim]
-                mask_flag: Optional[torch.Tensor],    # [N,1] or None
-                node_context: torch.Tensor,           # [N, hidden]
-                edge_index: torch.Tensor) -> torch.Tensor:
-        if self.use_mask_flag and (mask_flag is not None):
-             h = torch.cat([anchor, mask_flag, node_context], dim=1)
-        else:
-             h = torch.cat([anchor, node_context], dim=1)
-        h = self.in_proj(h)
-        for layer in self.layers:
-            h = layer(h, edge_index)
-        x_hat = self.out_proj(h)
-        return x_hat
 
 # =========================================================
 # 全体：MaskedTreeAutoencoder（mask_flag の有無を切替可能）
