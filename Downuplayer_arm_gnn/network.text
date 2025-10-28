@@ -1,0 +1,57 @@
+MaskedTreeAutoencoder
+|-- 入力: Data.x ∈ R^[N,19], edge_index ∈ {0..N-1}^[2,E]
+|   `-- マスク: 指定ノードのみ x=0 にし、mask_flag ∈ R^[N,1] を付与
+|
+|-- Encoder: TreeEncoder( (in_dim + 1) → hidden )
+|   |-- in_proj = MLP([20, 64, 128])  # 20 = 19 + mask_flag(1)
+|   |     Linear(20→64, bias=False)
+|   |     LayerNorm(64) → ReLU → Dropout(p=0.1)
+|   |     Linear(64→128, bias=False)
+|   |     出力: h0 ∈ R^[N,128]
+|   |
+|   |-- DownUpLayer × enc_rounds (=2)   # 各ラウンドで hidden 次元は不変 (128)
+|   |     （内部は2ブロック：down, up）
+|   |     dir_emb ∈ R^[2,128] （学習パラメータ）
+|   |     
+|   |     Round 1
+|   |       down:
+|   |         GINConv( φ_down ),  φ_down = MLP([128, 64, 128])
+|   |           Linear(128→64, bias=False)
+|   |           LayerNorm(64) → ReLU → Dropout(0.1)
+|   |           Linear(64→128, bias=False)
+|   |         残差 + 方向埋め込み:  d1 = φ_down-agg(h0, edge_index) + h0 + dir_emb[down]
+|   |         活性化・正規化:      h1d = LayerNorm(128)( ReLU( d1 ) )
+|   |       up:
+|   |         GINConv( φ_up ),    φ_up = MLP([128, 64, 128])（上と同形）
+|   |         残差 + 方向埋め込み:  u1 = φ_up-agg(h1d, rev_edge_index) + h1d + dir_emb[up]
+|   |         活性化・正規化:      h1  = LayerNorm(128)( ReLU( u1 ) )
+|   |
+|   |     Round 2
+|   |       down/up も同様（入力 h1 → 出力 h_enc）
+|   |
+|   `-- encoder 出力: node_context = h_enc ∈ R^[N,128]
+|
+|-- Decoder: TreeDecoder( anchor_dim + 1 + hidden → out_dim )
+|   |-- anchor 選択: anchor_idx=None → anchor = x ∈ R^[N,19]
+|   |-- 入力結合: concat([anchor(19), mask_flag(1), node_context(128)]) → R^[N,148]
+|   |
+|   |-- in_proj = MLP([148, 64, 128])
+|   |     Linear(148→64, bias=False)
+|   |     LayerNorm(64) → ReLU → Dropout(0.1)
+|   |     Linear(64→128, bias=False)
+|   |     出力: g0 ∈ R^[N,128]
+|   |
+|   |-- DownUpLayer × dec_rounds (=2)   # 形は Encoder と同じ
+|   |     （各ラウンドで GINConv(MLP[128,64,128]) → 残差+dir_emb → ReLU → LayerNorm）
+|   |     出力: g_dec ∈ R^[N,128]
+|   |
+|   `-- out_proj = MLP([128, 16, 19])  # 19 = 元特徴次元
+|         Linear(128→16, bias=False)
+|         LayerNorm(16) → ReLU → Dropout(0.1)
+|         Linear(16→19,  bias=False)
+|         出力: x_hat ∈ R^[N,19]
+|
+`-- 返り値:
+    |-- x_hat ∈ R^[N,19]
+    `-- out = { "x_hat": x_hat, "mask_flag": R^[N,1], "node_context": R^[N,128],
+                （recon_only_masked時のみ "recon_target_idx": LongTensor[#masked]） }

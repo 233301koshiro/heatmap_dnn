@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/urdf_robot_gnn/borinot_flying_arm_2.urdf",
+  "scale_mean_edge_len": 0.12647478238789756,
+  "n_nodes": 4,
+  "n_edges": 3,
+  "x_shape": [
+    4,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    3
+  ],
+  "edge_attr_shape": [
+    3,
+    0
+  ]
+}

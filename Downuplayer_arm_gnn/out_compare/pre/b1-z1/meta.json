@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/urdf_robot_gnn/b1-z1.urdf",
+  "scale_mean_edge_len": 0.18093466930831026,
+  "n_nodes": 40,
+  "n_edges": 39,
+  "x_shape": [
+    40,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    39
+  ],
+  "edge_attr_shape": [
+    39,
+    0
+  ]
+}

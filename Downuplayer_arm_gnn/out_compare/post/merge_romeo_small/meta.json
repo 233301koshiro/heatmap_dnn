@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/merge_joint_robots/merge_romeo_small.urdf",
+  "scale_mean_edge_len": 0.10313249249462755,
+  "n_nodes": 32,
+  "n_edges": 31,
+  "x_shape": [
+    32,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    31
+  ],
+  "edge_attr_shape": [
+    31,
+    0
+  ]
+}

@@ -1,0 +1,475 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-03 1.000000000000e-03 1.000000000000e-03" />
+   </geometry>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-03 1.000000000000e-03 1.000000000000e-03" />
+   </geometry>
+   <material name="mat__0">
+    <color rgba="0.2 0.2 0.2 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_base.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.670000000000e-01 1.940000000000e-01 1.140000000000e-01" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-03 1.000000000000e-03 1.000000000000e-03" />
+   </geometry>
+   <material name="mat__1">
+    <color rgba="0.2 0.2 0.2 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="7.0010000000000003" />
+   <origin xyz="0.000000000000e+00 3.513780000000e-03 -4.285100000000e-04" />
+   <inertia ixx="1.01597" ixy="-3.6600000000000002e-05" ixz="-6.1099999999999994e-05" iyy="1.0379" iyz="-2.5741400000000001e-05" izz="1.0457700000000001" />
+  </inertial>
+ </link>
+ <link name="FR_hip">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_hip.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.045999999999999999" length="0.040000000000000001" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 -8.100000000000e-02 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.041000000000000002" length="0.032000000000000001" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.69601000000000002" />
+   <origin xyz="-3.310950000000e-03 -6.361550000000e-04 3.099960000000e-05" />
+   <inertia ixx="0.00046931099999999998" ixy="9.4116600000000006e-06" ixz="-3.4199899999999999e-07" iyy="0.00080749000000000001" iyz="4.6597500000000002e-07" izz="0.00055299400000000001" />
+  </inertial>
+ </link>
+ <joint name="FR_hip_joint" type="revolute">
+  <parent link="base" />
+  <child link="FR_hip" />
+  <origin xyz="1.805000000000e-01 -4.700000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.8028514559173916" upper="0.8028514559173916" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FR_hip_joint" />
+ <link name="FR_thigh">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_thigh.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 2.450000000000e-02 3.400000000000e-02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.0129999999999999" />
+   <origin xyz="-3.237000000000e-03 2.232700000000e-02 -2.732600000000e-02" />
+   <inertia ixx="0.0055290599999999997" ixy="-4.8250000000000004e-06" ixz="0.00034386900000000001" iyy="0.0051393400000000001" iyz="-2.2447999999999999e-05" izz="0.00136779" />
+  </inertial>
+ </link>
+ <joint name="FR_thigh_joint" type="revolute">
+  <parent link="FR_hip" />
+  <child link="FR_thigh" />
+  <origin xyz="0.000000000000e+00 -8.380000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.0471975511965976" upper="4.1887902047863905" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FR_thigh_joint" />
+ <link name="FR_calf">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.01" />
+   </geometry>
+   <material name="mat__2">
+    <color rgba="0.2 0.2 0.2 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_calf.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 1.600000000000e-02 1.600000000000e-02" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.22600000000000001" />
+   <origin xyz="4.726590000000e-03 0.000000000000e+00 -1.319750000000e-01" />
+   <inertia ixx="0.0033855700000000001" ixy="0" ixz="-0.00016742699999999999" iyy="0.0034034400000000002" iyz="0" izz="4.3850899999999997e-05" />
+  </inertial>
+ </link>
+ <joint name="FR_calf_joint" type="revolute">
+  <parent link="FR_thigh" />
+  <child link="FR_calf" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.6965336943312392" upper="-0.91629785729702307" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FR_calf_joint" />
+ <link name="FL_hip">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_hip.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.045999999999999999" length="0.040000000000000001" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 8.100000000000e-02 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.041000000000000002" length="0.032000000000000001" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.69601000000000002" />
+   <origin xyz="-3.310950000000e-03 6.361550000000e-04 3.099960000000e-05" />
+   <inertia ixx="0.00046931099999999998" ixy="-9.4116600000000006e-06" ixz="-3.4199899999999999e-07" iyy="0.00080749000000000001" iyz="-4.6597500000000002e-07" izz="0.00055299400000000001" />
+  </inertial>
+ </link>
+ <joint name="FL_hip_joint" type="revolute">
+  <parent link="base" />
+  <child link="FL_hip" />
+  <origin xyz="1.805000000000e-01 4.700000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.8028514559173916" upper="0.8028514559173916" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FL_hip_joint" />
+ <link name="FL_thigh">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_thigh.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 2.450000000000e-02 3.400000000000e-02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.0129999999999999" />
+   <origin xyz="-3.237000000000e-03 -2.232700000000e-02 -2.732600000000e-02" />
+   <inertia ixx="0.0055290599999999997" ixy="4.8250000000000004e-06" ixz="0.00034386900000000001" iyy="0.0051393400000000001" iyz="2.2447999999999999e-05" izz="0.00136779" />
+  </inertial>
+ </link>
+ <joint name="FL_thigh_joint" type="revolute">
+  <parent link="FL_hip" />
+  <child link="FL_thigh" />
+  <origin xyz="0.000000000000e+00 8.380000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.0471975511965976" upper="4.1887902047863905" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FL_thigh_joint" />
+ <link name="FL_calf">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.01" />
+   </geometry>
+   <material name="mat__3">
+    <color rgba="0.2 0.2 0.2 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_calf.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 1.600000000000e-02 1.600000000000e-02" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.22600000000000001" />
+   <origin xyz="4.726590000000e-03 0.000000000000e+00 -1.319750000000e-01" />
+   <inertia ixx="0.0033855700000000001" ixy="0" ixz="-0.00016742699999999999" iyy="0.0034034400000000002" iyz="0" izz="4.3850899999999997e-05" />
+  </inertial>
+ </link>
+ <joint name="FL_calf_joint" type="revolute">
+  <parent link="FL_thigh" />
+  <child link="FL_calf" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.6965336943312392" upper="-0.91629785729702307" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FL_calf_joint" />
+ <link name="RR_hip">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RR_hip.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.045999999999999999" length="0.040000000000000001" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 -8.100000000000e-02 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.041000000000000002" length="0.032000000000000001" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.69601000000000002" />
+   <origin xyz="3.310950000000e-03 -6.361550000000e-04 3.099960000000e-05" />
+   <inertia ixx="0.00046931099999999998" ixy="-9.4116600000000006e-06" ixz="3.4199899999999999e-07" iyy="0.00080749000000000001" iyz="4.6597500000000002e-07" izz="0.00055299400000000001" />
+  </inertial>
+ </link>
+ <joint name="RR_hip_joint" type="revolute">
+  <parent link="base" />
+  <child link="RR_hip" />
+  <origin xyz="-1.805000000000e-01 -4.700000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.8028514559173916" upper="0.8028514559173916" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RR_hip_joint" />
+ <link name="RR_thigh">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RR_thigh.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 2.450000000000e-02 3.400000000000e-02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.0129999999999999" />
+   <origin xyz="-3.237000000000e-03 2.232700000000e-02 -2.732600000000e-02" />
+   <inertia ixx="0.0055290599999999997" ixy="-4.8250000000000004e-06" ixz="0.00034386900000000001" iyy="0.0051393400000000001" iyz="-2.2447999999999999e-05" izz="0.00136779" />
+  </inertial>
+ </link>
+ <joint name="RR_thigh_joint" type="revolute">
+  <parent link="RR_hip" />
+  <child link="RR_thigh" />
+  <origin xyz="0.000000000000e+00 -8.380000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.0471975511965976" upper="4.1887902047863905" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RR_thigh_joint" />
+ <link name="RR_calf">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.01" />
+   </geometry>
+   <material name="mat__4">
+    <color rgba="0.2 0.2 0.2 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RR_calf.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 1.600000000000e-02 1.600000000000e-02" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.22600000000000001" />
+   <origin xyz="4.726590000000e-03 0.000000000000e+00 -1.319750000000e-01" />
+   <inertia ixx="0.0033855700000000001" ixy="0" ixz="-0.00016742699999999999" iyy="0.0034034400000000002" iyz="0" izz="4.3850899999999997e-05" />
+  </inertial>
+ </link>
+ <joint name="RR_calf_joint" type="revolute">
+  <parent link="RR_thigh" />
+  <child link="RR_calf" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.6965336943312392" upper="-0.91629785729702307" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RR_calf_joint" />
+ <link name="RL_hip">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RL_hip.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.045999999999999999" length="0.040000000000000001" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 8.100000000000e-02 0.000000000000e+00" rpy="1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.041000000000000002" length="0.032000000000000001" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.69601000000000002" />
+   <origin xyz="3.310950000000e-03 6.361550000000e-04 3.099960000000e-05" />
+   <inertia ixx="0.00046931099999999998" ixy="9.4116600000000006e-06" ixz="3.4199899999999999e-07" iyy="0.00080749000000000001" iyz="-4.6597500000000002e-07" izz="0.00055299400000000001" />
+  </inertial>
+ </link>
+ <joint name="RL_hip_joint" type="revolute">
+  <parent link="base" />
+  <child link="RL_hip" />
+  <origin xyz="-1.805000000000e-01 4.700000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.8028514559173916" upper="0.8028514559173916" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RL_hip_joint" />
+ <link name="RL_thigh">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RL_thigh.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 2.450000000000e-02 3.400000000000e-02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.0129999999999999" />
+   <origin xyz="-3.237000000000e-03 -2.232700000000e-02 -2.732600000000e-02" />
+   <inertia ixx="0.0055290599999999997" ixy="4.8250000000000004e-06" ixz="0.00034386900000000001" iyy="0.0051393400000000001" iyz="2.2447999999999999e-05" izz="0.00136779" />
+  </inertial>
+ </link>
+ <joint name="RL_thigh_joint" type="revolute">
+  <parent link="RL_hip" />
+  <child link="RL_thigh" />
+  <origin xyz="0.000000000000e+00 8.380000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.0471975511965976" upper="4.1887902047863905" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RL_thigh_joint" />
+ <link name="RL_calf">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.01" />
+   </geometry>
+   <material name="mat__5">
+    <color rgba="0.2 0.2 0.2 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RL_calf.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="2.000000000000e-01 1.600000000000e-02 1.600000000000e-02" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.02" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.22600000000000001" />
+   <origin xyz="4.726590000000e-03 0.000000000000e+00 -1.319750000000e-01" />
+   <inertia ixx="0.0033855700000000001" ixy="0" ixz="-0.00016742699999999999" iyy="0.0034034400000000002" iyz="0" izz="4.3850899999999997e-05" />
+  </inertial>
+ </link>
+ <joint name="RL_calf_joint" type="revolute">
+  <parent link="RL_thigh" />
+  <child link="RL_calf" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.6965336943312392" upper="-0.91629785729702307" velocity="20.999976092920974" effort="33.5" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RL_calf_joint" />
+</robot>
+

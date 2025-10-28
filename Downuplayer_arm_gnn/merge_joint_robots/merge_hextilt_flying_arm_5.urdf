@@ -1,0 +1,179 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="hextilt__base_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_hextilt__base_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_hextilt__base_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.2991299999999999" />
+   <origin xyz="-4.257870000000e-03 3.217510000000e-03 -1.699100000000e-02" />
+   <inertia ixx="0.00201556" ixy="1.0857799999999999e-06" ixz="4.5739799999999999e-05" iyy="0.0020019299999999999" iyz="-2.5630799999999999e-05" izz="0.0030294100000000002" />
+  </inertial>
+ </link>
+ <link name="flying_arm_5__link_1">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_1.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_1.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.12284" />
+   <origin xyz="9.728900000000e-02 5.246700000000e-05 -1.214700000000e-02" />
+   <inertia ixx="2.3845999999999998e-05" ixy="-5.0882999999999996e-13" ixz="3.5275999999999999e-06" iyy="0.00021635" iyz="-1.2916000000000001e-12" izz="0.00023624" />
+  </inertial>
+ </link>
+ <joint name="flying_arm_5__j_base_link_link_1" type="revolute">
+  <parent link="hextilt__base_link" />
+  <child link="flying_arm_5__link_1" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -5.160000000000e-02" rpy="-4.636466851705e-01 1.570793744807e+00 -2.034444166705e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.6707967116171638" upper="1.6707967116171638" velocity="10000.003575641671" effort="1" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="flying_arm_5__j_base_link_link_1" />
+ <link name="flying_arm_5__link_2">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_2.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_2.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.11473999999999999" />
+   <origin xyz="4.323800000000e-02 2.430800000000e-05 -8.792600000000e-03" />
+   <inertia ixx="1.1739999999999999e-05" ixy="1.3294e-09" ixz="-2.0499000000000001e-06" iyy="4.7747000000000002e-05" iyz="-1.6102000000000001e-08" izz="5.2343999999999999e-05" />
+  </inertial>
+ </link>
+ <joint name="flying_arm_5__j_link_1_link_2" type="revolute">
+  <parent link="flying_arm_5__link_1" />
+  <child link="flying_arm_5__link_2" />
+  <origin xyz="1.320000000000e-01 -2.699427828450e-17 2.298772212141e-17" rpy="2.045027643456e-16 -1.741496057266e-16 -2.045023408292e-16" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.6707967116171638" upper="1.6707967116171638" velocity="10000.003575641671" effort="1" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="flying_arm_5__j_link_1_link_2" />
+ <link name="flying_arm_5__link_3">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_3.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_3.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.068772" />
+   <origin xyz="2.082700000000e-04 -3.122300000000e-03 -1.196600000000e-02" />
+   <inertia ixx="6.8293e-06" ixy="4.2308999999999999e-08" ixz="1.548e-09" iyy="7.2432000000000004e-06" iyz="1.6137999999999999e-08" izz="7.1042999999999999e-06" />
+  </inertial>
+ </link>
+ <joint name="flying_arm_5__j_link_2_link_3" type="revolute">
+  <parent link="flying_arm_5__link_2" />
+  <child link="flying_arm_5__link_3" />
+  <origin xyz="7.500000000000e-02 -1.533768879708e-17 1.306120454762e-17" rpy="2.045027643456e-16 -1.741496057266e-16 -2.045023408292e-16" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.6707967116171638" upper="1.6707967116171638" velocity="10000.003575641671" effort="0.29999999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="flying_arm_5__j_link_2_link_3" />
+ <link name="flying_arm_5__link_4">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_4.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_4.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.059139999999999998" />
+   <origin xyz="2.612500000000e-02 2.972400000000e-09 1.687500000000e-03" />
+   <inertia ixx="2.2711999999999999e-05" ixy="2.3256000000000001e-12" ixz="5.2508999999999997e-09" iyy="2.472e-05" iyz="3.3225000000000001e-09" izz="1.0444e-05" />
+  </inertial>
+ </link>
+ <joint name="flying_arm_5__j_link_3_link_4" type="revolute">
+  <parent link="flying_arm_5__link_3" />
+  <child link="flying_arm_5__link_4" />
+  <origin xyz="-1.884664851253e-17 -2.438727369977e-18 -1.192500000000e-02" rpy="1.570799817453e+00 -1.741496057266e-16 -2.045023408292e-16" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.6707967116171638" upper="1.6707967116171638" velocity="10000.003575641671" effort="0.29999999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="flying_arm_5__j_link_3_link_4" />
+ <link name="flying_arm_5__link_5">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_5.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_flying_arm_5__link_5.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.021801000000000001" />
+   <origin xyz="1.733900000000e-18 -1.024130000000e-17 2.583270000000e-02" />
+   <inertia ixx="7.9223799999999992e-06" ixy="1.6653e-13" ixz="2.99099e-21" iyy="1.5457699999999999e-05" iyz="-1.1998e-21" izz="1.0818e-05" />
+  </inertial>
+ </link>
+ <joint name="flying_arm_5__j_link_4_link_5" type="revolute">
+  <parent link="flying_arm_5__link_4" />
+  <child link="flying_arm_5__link_5" />
+  <origin xyz="3.400000000000e-02 5.813531224141e-18 -2.500000000000e-04" rpy="1.570797481495e+00 2.309399487073e-06 1.570797481495e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.6707967116171638" upper="1.6707967116171638" velocity="10000.003575641671" effort="0.29999999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="flying_arm_5__j_link_4_link_5" />
+</robot>
+

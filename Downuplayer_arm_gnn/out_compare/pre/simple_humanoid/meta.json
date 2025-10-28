@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/urdf_robot_gnn/simple_humanoid.urdf",
+  "scale_mean_edge_len": 0.11103125,
+  "n_nodes": 33,
+  "n_edges": 32,
+  "x_shape": [
+    33,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    32
+  ],
+  "edge_attr_shape": [
+    32,
+    0
+  ]
+}

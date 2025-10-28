@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/urdf_robot_gnn/hextilt_flying_arm_5.urdf",
+  "scale_mean_edge_len": 0.05207513130074631,
+  "n_nodes": 8,
+  "n_edges": 7,
+  "x_shape": [
+    8,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    7
+  ],
+  "edge_attr_shape": [
+    7,
+    0
+  ]
+}

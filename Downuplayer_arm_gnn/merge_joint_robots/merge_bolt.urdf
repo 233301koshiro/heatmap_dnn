@@ -1,0 +1,204 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.61436900000000005" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="0.0057857400000000002" ixy="0" ixz="0" iyy="0.019381099999999998" iyz="0" izz="0.024761200000000001" />
+  </inertial>
+ </link>
+ <link name="FL_SHOULDER">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_SHOULDER.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_SHOULDER.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.140043" />
+   <origin xyz="1.708260000000e-02 -4.468920000000e-03 -1.095830000000e-02" />
+   <inertia ixx="7.4430000000000004e-05" ixy="1.48e-06" ixz="2.154e-05" iyy="0.00013846999999999999" iyz="-1.096e-05" izz="9.0019999999999995e-05" />
+  </inertial>
+ </link>
+ <joint name="FL_HAA" type="revolute">
+  <parent link="base_link" />
+  <child link="FL_SHOULDER" />
+  <origin xyz="0.000000000000e+00 6.360000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-10.000003575641671" upper="10.000003575641671" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FL_HAA" />
+ <link name="FL_UPPER_LEG">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_UPPER_LEG.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_UPPER_LEG.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.148538" />
+   <origin xyz="1.377000000000e-05 1.935850000000e-02 -1.187070000000e-01" />
+   <inertia ixx="0.00041106999999999998" ixy="0" ixz="8.9999999999999999e-08" iyy="0.00041193000000000002" iyz="-4.6709999999999998e-05" izz="3.0239999999999998e-05" />
+  </inertial>
+ </link>
+ <joint name="FL_HFE" type="revolute">
+  <parent link="FL_SHOULDER" />
+  <child link="FL_UPPER_LEG" />
+  <origin xyz="0.000000000000e+00 1.450000000000e-02 -3.860000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-10.000003575641671" upper="10.000003575641671" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FL_HFE" />
+ <link name="FL_LOWER_LEG">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_LOWER_LEG.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_FL_LOWER_LEG.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.031182399999999999" />
+   <origin xyz="0.000000000000e+00 8.367060000000e-03 -1.159460000000e-01" />
+   <inertia ixx="0.00011551" ixy="0" ixz="0" iyy="0.00011647" iyz="-1.9003099999999999e-06" izz="2.7300000000000001e-06" />
+  </inertial>
+ </link>
+ <joint name="FL_KFE" type="revolute">
+  <parent link="FL_UPPER_LEG" />
+  <child link="FL_LOWER_LEG" />
+  <origin xyz="0.000000000000e+00 3.740000000000e-02 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-10.000003575641671" upper="10.000003575641671" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FL_KFE" />
+ <link name="FR_SHOULDER">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_SHOULDER.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_SHOULDER.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.140044" />
+   <origin xyz="1.708230000000e-02 4.470990000000e-03 -1.095850000000e-02" />
+   <inertia ixx="7.4419999999999996e-05" ixy="-1.48e-06" ixz="2.154e-05" iyy="0.00013847999999999999" iyz="1.095e-05" izz="9.001e-05" />
+  </inertial>
+ </link>
+ <joint name="FR_HAA" type="revolute">
+  <parent link="base_link" />
+  <child link="FR_SHOULDER" />
+  <origin xyz="0.000000000000e+00 -6.360000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-10.000003575641671" upper="10.000003575641671" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FR_HAA" />
+ <link name="FR_UPPER_LEG">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_UPPER_LEG.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_UPPER_LEG.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.148538" />
+   <origin xyz="-1.377000000000e-05 -1.935850000000e-02 -1.187070000000e-01" />
+   <inertia ixx="0.00041106999999999998" ixy="0" ixz="-8.9999999999999999e-08" iyy="0.00041193000000000002" iyz="4.6709999999999998e-05" izz="3.0239999999999998e-05" />
+  </inertial>
+ </link>
+ <joint name="FR_HFE" type="revolute">
+  <parent link="FR_SHOULDER" />
+  <child link="FR_UPPER_LEG" />
+  <origin xyz="0.000000000000e+00 -1.450000000000e-02 -3.860000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-10.000003575641671" upper="10.000003575641671" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FR_HFE" />
+ <link name="FR_LOWER_LEG">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_LOWER_LEG.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_FR_LOWER_LEG.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.031182399999999999" />
+   <origin xyz="0.000000000000e+00 -8.367060000000e-03 -1.159460000000e-01" />
+   <inertia ixx="0.00011551" ixy="0" ixz="0" iyy="0.00011647" iyz="1.9003099999999999e-06" izz="2.7300000000000001e-06" />
+  </inertial>
+ </link>
+ <joint name="FR_KFE" type="revolute">
+  <parent link="FR_UPPER_LEG" />
+  <child link="FR_LOWER_LEG" />
+  <origin xyz="0.000000000000e+00 -3.740000000000e-02 -2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-10.000003575641671" upper="10.000003575641671" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="FR_KFE" />
+</robot>
+

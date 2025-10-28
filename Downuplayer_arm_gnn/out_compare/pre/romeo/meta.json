@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/urdf_robot_gnn/romeo.urdf",
+  "scale_mean_edge_len": 0.09223468947818458,
+  "n_nodes": 82,
+  "n_edges": 81,
+  "x_shape": [
+    82,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    81
+  ],
+  "edge_attr_shape": [
+    81,
+    0
+  ]
+}

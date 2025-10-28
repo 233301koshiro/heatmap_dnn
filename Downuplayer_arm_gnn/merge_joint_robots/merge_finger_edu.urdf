@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="-5.000000000000e-02 0.000000000000e+00 3.415000000000e-01" />
+   <inertia ixx="0.29408200000000001" ixy="0" ixz="0.03415" iyy="0.29491499999999998" iyz="0" izz="0.015837500000000001" />
+  </inertial>
+ </link>
+ <link name="finger_upper_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_finger_upper_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_finger_upper_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.14854000000000001" />
+   <origin xyz="-7.900000000000e-02 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="3.0000000000000001e-05" ixy="5.0000000000000002e-05" ixz="0" iyy="0.00040999999999999999" iyz="0" izz="0.00040999999999999999" />
+  </inertial>
+ </link>
+ <joint name="finger_base_to_upper_joint" type="revolute">
+  <parent link="base_link" />
+  <child link="finger_upper_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 2.830000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="-1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.5707963267948966" upper="1.5707963267948966" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="finger_base_to_upper_joint" />
+ <link name="finger_middle_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_finger_middle_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_finger_middle_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.14854000000000001" />
+   <origin xyz="0.000000000000e+00 -1.900000000000e-02 -7.900000000000e-02" />
+   <inertia ixx="0.00040999999999999999" ixy="0" ixz="0" iyy="0.00040999999999999999" iyz="5.0000000000000002e-05" izz="3.0000000000000001e-05" />
+  </inertial>
+ </link>
+ <joint name="finger_upper_to_middle_joint" type="revolute">
+  <parent link="finger_upper_link" />
+  <child link="finger_middle_link" />
+  <origin xyz="0.000000000000e+00 -1.400000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.5707963267948966" upper="1.5707963267948966" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="finger_upper_to_middle_joint" />
+ <link name="finger_lower_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_finger_lower_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_finger_lower_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.0407" />
+   <origin xyz="0.000000000000e+00 -8.754300000000e-03 -1.064450000000e-01" />
+   <inertia ixx="0.00015819799999999999" ixy="0" ixz="0" iyy="0.00015819099999999999" iyz="5.3555299999999998e-07" izz="1.7421e-07" />
+  </inertial>
+ </link>
+ <joint name="finger_middle_to_lower_joint" type="revolute">
+  <parent link="finger_middle_link" />
+  <child link="finger_lower_link" />
+  <origin xyz="0.000000000000e+00 -3.745000000000e-02 -1.600000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-3.1415926535897931" upper="3.1415926535897931" velocity="1000.0003575641671" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="finger_middle_to_lower_joint" />
+</robot>
+

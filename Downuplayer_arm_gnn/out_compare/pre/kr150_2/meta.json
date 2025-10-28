@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/gnn_arm_dataset/kr150_2.urdf",
+  "scale_mean_edge_len": 0.41500000000000004,
+  "n_nodes": 10,
+  "n_edges": 9,
+  "x_shape": [
+    10,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    9
+  ],
+  "edge_attr_shape": [
+    9,
+    0
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/merge_joint_robots/merge_borinot_flying_arm_2.urdf",
+  "scale_mean_edge_len": 0.12471217358184633,
+  "n_nodes": 3,
+  "n_edges": 2,
+  "x_shape": [
+    3,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    2
+  ],
+  "edge_attr_shape": [
+    2,
+    0
+  ]
+}

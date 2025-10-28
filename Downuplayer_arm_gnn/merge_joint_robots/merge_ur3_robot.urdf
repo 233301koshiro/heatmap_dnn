@@ -1,0 +1,210 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="world">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_world.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_world.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="0.00305317" ixy="0" ixz="0" iyy="0.00305317" iyz="0" izz="0.0056249999999999998" />
+  </inertial>
+ </link>
+ <link name="shoulder_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_shoulder_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_shoulder_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="0.0080931600000000003" ixy="0" ixz="0" iyy="0.0080931600000000003" iyz="0" izz="0.0056249999999999998" />
+  </inertial>
+ </link>
+ <joint name="shoulder_pan_joint" type="revolute">
+  <parent link="world" />
+  <child link="shoulder_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 1.519000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-6.2831853071795862" upper="6.2831853071795862" velocity="2.1600020289756623" effort="330" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="shoulder_pan_joint" />
+ <link name="upper_arm_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_upper_arm_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_upper_arm_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="3.4199999999999999" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.218250000000e-01" />
+   <inertia ixx="0.021728500000000001" ixy="0" ixz="0" iyy="0.021728500000000001" iyz="0" izz="0.0096187500000000006" />
+  </inertial>
+ </link>
+ <joint name="shoulder_lift_joint" type="revolute">
+  <parent link="shoulder_link" />
+  <child link="upper_arm_link" />
+  <origin xyz="0.000000000000e+00 1.198000000000e-01 0.000000000000e+00" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-6.2831853071795862" upper="6.2831853071795862" velocity="2.1600020289756623" effort="330" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="shoulder_lift_joint" />
+ <link name="forearm_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_forearm_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_forearm_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.26" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.066250000000e-01" />
+   <inertia ixx="0.0065468100000000001" ixy="0" ixz="0" iyy="0.0065468100000000001" iyz="0" izz="0.00354375" />
+  </inertial>
+ </link>
+ <joint name="elbow_joint" type="revolute">
+  <parent link="upper_arm_link" />
+  <child link="forearm_link" />
+  <origin xyz="-1.283631598502e-17 -9.250000000000e-02 2.436500000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-3.1415926535897931" upper="3.1415926535897931" velocity="3.1500051405844061" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="elbow_joint" />
+ <link name="wrist_1_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_wrist_1_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_wrist_1_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.80000000000000004" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="0.002085" ixy="0" ixz="0" iyy="0.002085" iyz="0" izz="0.0022499999999999998" />
+  </inertial>
+ </link>
+ <joint name="wrist_1_joint" type="revolute">
+  <parent link="forearm_link" />
+  <child link="wrist_1_link" />
+  <origin xyz="1.305779649591e-17 0.000000000000e+00 2.132500000000e-01" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-6.2831853071795862" upper="6.2831853071795862" velocity="3.1999913703615235" effort="54" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="wrist_1_joint" />
+ <link name="wrist_2_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_wrist_2_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_wrist_2_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.80000000000000004" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="0.002085" ixy="0" ixz="0" iyy="0.002085" iyz="0" izz="0.0022499999999999998" />
+  </inertial>
+ </link>
+ <joint name="wrist_2_joint" type="revolute">
+  <parent link="wrist_1_link" />
+  <child link="wrist_2_link" />
+  <origin xyz="0.000000000000e+00 8.505000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-6.2831853071795862" upper="6.2831853071795862" velocity="3.1999913703615235" effort="54" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="wrist_2_joint" />
+ <link name="wrist_3_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_wrist_3_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="-5.236095061077e-14 7.190000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 1.570796326790e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.000000000000e-02" />
+   </geometry>
+  </collision>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_wrist_3_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.35000199999999998" />
+   <origin xyz="0.000000000000e+00 4.679970000000e-07 0.000000000000e+00" />
+   <inertia ixx="0.00091220099999999996" ixy="0" ixz="0" iyy="0.00091218699999999996" iyz="0" izz="0.0009843880000000001" />
+  </inertial>
+ </link>
+ <joint name="wrist_3_joint" type="revolute">
+  <parent link="wrist_2_link" />
+  <child link="wrist_3_link" />
+  <origin xyz="1.045236043072e-17 0.000000000000e+00 8.535000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-6.2831853071795862" upper="6.2831853071795862" velocity="3.1999913703615235" effort="54" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="wrist_3_joint" />
+</robot>
+

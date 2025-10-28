@@ -1,0 +1,709 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="7.1627700000000001" />
+   <origin xyz="2.268630000000e-02 2.429230000000e-03 -1.673220000000e-01" />
+   <inertia ixx="3.2784200000000001" ixy="-0.00075034400000000001" ixz="0.0034302099999999999" iyy="3.2789299999999999" iyz="0.00014752400000000001" izz="3.0259100000000001" />
+  </inertial>
+ </link>
+ <link name="LHipYawLink">
+  <inertial>
+   <mass value="0.49476999999999999" />
+   <origin xyz="-8.710000000000e-03 -2.200000000000e-04 6.319000000000e-02" />
+   <inertia ixx="0.0030366799999999999" ixy="0" ixz="0" iyy="0.0034799800000000001" iyz="0" izz="0.00062277299999999997" />
+  </inertial>
+ </link>
+ <joint name="LHipYaw" type="revolute">
+  <parent link="base_link" />
+  <child link="LHipYawLink" />
+  <origin xyz="0.000000000000e+00 9.600000000000e-02 -2.000400000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.26179938779914941" upper="0.26179938779914941" velocity="0.31999913703615229" effort="9.1999999999999993" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LHipYaw" />
+ <link name="LHipRollLink">
+  <inertial>
+   <mass value="0.66069999999999995" />
+   <origin xyz="2.930000000000e-03 -2.700000000000e-04 1.100000000000e-04" />
+   <inertia ixx="0.00089862000000000004" ixy="0" ixz="0" iyy="0.00050955900000000003" iyz="0" izz="0.00093539199999999995" />
+  </inertial>
+ </link>
+ <joint name="LHipRoll" type="revolute">
+  <parent link="LHipYawLink" />
+  <child link="LHipRollLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.26179938779914941" upper="0.52359877559829882" velocity="2.0899968726781699" effort="46.600000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LHipRoll" />
+ <link name="LHipPitchLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LHipPitchLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LHipPitchLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="4.3393499999999996" />
+   <origin xyz="-9.710000000000e-03 1.350000000000e-03 -1.508300000000e-01" />
+   <inertia ixx="0.13289500000000001" ixy="0" ixz="0" iyy="0.13397700000000001" iyz="0" izz="0.012168699999999999" />
+  </inertial>
+ </link>
+ <joint name="LHipPitch" type="revolute">
+  <parent link="LHipRollLink" />
+  <child link="LHipPitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.7104191762959389" upper="0.4014257279586958" velocity="2.0899968726781699" effort="46.600000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LHipPitch" />
+ <link name="LKneePitchLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LKneePitchLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LKneePitchLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.61063" />
+   <origin xyz="-5.320000000000e-03 -7.500000000000e-04 -1.225800000000e-01" />
+   <inertia ixx="0.054912999999999997" ixy="0" ixz="0" iyy="0.054966300000000003" iyz="0" izz="0.00398482" />
+  </inertial>
+ </link>
+ <joint name="LKneePitch" type="revolute">
+  <parent link="LHipPitchLink" />
+  <child link="LKneePitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -3.200000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="2.0071286397934789" velocity="6.0000056360435057" effort="38.170000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LKneePitch" />
+ <link name="LAnklePitchLink">
+  <inertial>
+   <mass value="0.50080000000000002" />
+   <origin xyz="5.900000000000e-04 5.100000000000e-04 3.800000000000e-04" />
+   <inertia ixx="0.00042995199999999999" ixy="0" ixz="0" iyy="0.000281451" iyz="0" izz="0.00052766499999999997" />
+  </inertial>
+ </link>
+ <joint name="LAnklePitch" type="revolute">
+  <parent link="LKneePitchLink" />
+  <child link="LAnklePitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.900000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.52359877559829882" upper="0.78539816339744828" velocity="2.0999976092920973" effort="25.760000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LAnklePitch" />
+ <link name="l_ankle">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_l_ankle.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_l_ankle.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="6.0715500000000002" />
+   <origin xyz="6.212270000000e-02 2.229830000000e-03 -6.178970000000e-02" />
+   <inertia ixx="5.0065600000000003" ixy="-0.000111338" ixz="-0.00057899899999999996" iyy="5.0404999999999998" iyz="0.000163852" izz="5.0413300000000003" />
+  </inertial>
+ </link>
+ <joint name="LAnkleRoll" type="revolute">
+  <parent link="LAnklePitchLink" />
+  <child link="l_ankle" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.3490658503988659" upper="0.3490658503988659" velocity="2.0999976092920973" effort="25.760000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LAnkleRoll" />
+ <link name="RHipYawLink">
+  <inertial>
+   <mass value="0.49476999999999999" />
+   <origin xyz="-8.710000000000e-03 2.200000000000e-04 6.319000000000e-02" />
+   <inertia ixx="0.0030366799999999999" ixy="0" ixz="0" iyy="0.0034799800000000001" iyz="0" izz="0.00062277299999999997" />
+  </inertial>
+ </link>
+ <joint name="RHipYaw" type="revolute">
+  <parent link="base_link" />
+  <child link="RHipYawLink" />
+  <origin xyz="0.000000000000e+00 -9.600000000000e-02 -2.000400000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.26179938779914941" upper="0.26179938779914941" velocity="0.31999913703615229" effort="9.1999999999999993" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RHipYaw" />
+ <link name="RHipRollLink">
+  <inertial>
+   <mass value="0.66069999999999995" />
+   <origin xyz="2.930000000000e-03 2.700000000000e-04 1.100000000000e-04" />
+   <inertia ixx="0.00089862000000000004" ixy="0" ixz="0" iyy="0.00050955900000000003" iyz="0" izz="0.00093539199999999995" />
+  </inertial>
+ </link>
+ <joint name="RHipRoll" type="revolute">
+  <parent link="RHipYawLink" />
+  <child link="RHipRollLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.52359877559829882" upper="0.26179938779914941" velocity="2.0899968726781699" effort="46.600000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RHipRoll" />
+ <link name="RHipPitchLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RHipPitchLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RHipPitchLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="4.3393499999999996" />
+   <origin xyz="-9.710000000000e-03 -1.350000000000e-03 -1.508300000000e-01" />
+   <inertia ixx="0.13289500000000001" ixy="0" ixz="0" iyy="0.13397700000000001" iyz="0" izz="0.012168699999999999" />
+  </inertial>
+ </link>
+ <joint name="RHipPitch" type="revolute">
+  <parent link="RHipRollLink" />
+  <child link="RHipPitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.7104191762959389" upper="0.4014257279586958" velocity="2.0899968726781699" effort="46.600000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RHipPitch" />
+ <link name="RKneePitchLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RKneePitchLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RKneePitchLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.61063" />
+   <origin xyz="-5.320000000000e-03 7.500000000000e-04 -1.225800000000e-01" />
+   <inertia ixx="0.054912999999999997" ixy="0" ixz="0" iyy="0.054966300000000003" iyz="0" izz="0.00398482" />
+  </inertial>
+ </link>
+ <joint name="RKneePitch" type="revolute">
+  <parent link="RHipPitchLink" />
+  <child link="RKneePitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -3.200000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="2.0071286397934789" velocity="6.0000056360435057" effort="38.170000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RKneePitch" />
+ <link name="RAnklePitchLink">
+  <inertial>
+   <mass value="0.50080000000000002" />
+   <origin xyz="5.900000000000e-04 -5.100000000000e-04 3.800000000000e-04" />
+   <inertia ixx="0.00042995199999999999" ixy="0" ixz="0" iyy="0.000281451" iyz="0" izz="0.00052766499999999997" />
+  </inertial>
+ </link>
+ <joint name="RAnklePitch" type="revolute">
+  <parent link="RKneePitchLink" />
+  <child link="RAnklePitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -2.900000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.52359877559829882" upper="0.78539816339744828" velocity="2.0999976092920973" effort="25.760000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RAnklePitch" />
+ <link name="r_ankle">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_r_ankle.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_r_ankle.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="6.0715500000000002" />
+   <origin xyz="6.212270000000e-02 4.358270000000e-03 -6.178970000000e-02" />
+   <inertia ixx="5.0064700000000002" ixy="-0.00032375500000000001" ixz="-0.00057899899999999996" iyy="5.0404999999999998" iyz="-5.14389e-05" izz="5.0412400000000002" />
+  </inertial>
+ </link>
+ <joint name="RAnkleRoll" type="revolute">
+  <parent link="RAnklePitchLink" />
+  <child link="r_ankle" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.3490658503988659" upper="0.3490658503988659" velocity="2.0999976092920973" effort="25.760000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RAnkleRoll" />
+ <link name="torso">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_torso.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_torso.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="9.9215999999999998" />
+   <origin xyz="2.300000000000e-03 0.000000000000e+00 -4.854000000000e-02" />
+   <inertia ixx="0.129332" ixy="-0.000359651" ixz="0.0028388799999999998" iyy="0.126831" iyz="-0.0020084299999999999" izz="0.110627" />
+  </inertial>
+ </link>
+ <joint name="TrunkYaw" type="revolute">
+  <parent link="base_link" />
+  <child link="torso" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.78539816339744828" upper="0.78539816339744828" velocity="1.5000005363462507" effort="80.902000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="TrunkYaw" />
+ <link name="NeckYawLink">
+  <inertial>
+   <mass value="0.51015999999999995" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -3.074000000000e-02" />
+   <inertia ixx="0.00122159" ixy="-8.0140000000000002e-08" ixz="1.145e-08" iyy="0.0012460800000000001" iyz="-1.8409499999999999e-06" izz="0.00018796500000000001" />
+  </inertial>
+ </link>
+ <joint name="NeckYaw" type="revolute">
+  <parent link="torso" />
+  <child link="NeckYawLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 8.350000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.5707998174534008" upper="1.5707998174534008" velocity="3.9999979395981642" effort="3.6619999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="NeckYaw" />
+ <link name="NeckPitchLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_NeckPitchLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_NeckPitchLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.23874999999999999" />
+   <origin xyz="-4.720000000000e-03 0.000000000000e+00 4.432000000000e-02" />
+   <inertia ixx="0.00086602200000000004" ixy="-1.57263e-06" ixz="6.1382499999999997e-05" iyy="0.00081828700000000001" iyz="9.6951499999999998e-06" izz="0.00023891900000000001" />
+  </inertial>
+ </link>
+ <joint name="NeckPitch" type="revolute">
+  <parent link="NeckYawLink" />
+  <child link="NeckPitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.3490658503988659" upper="0.69813170079773179" velocity="2.2000049754313724" effort="2.9780000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="NeckPitch" />
+ <link name="HeadPitchLink">
+  <inertial>
+   <mass value="0.13980999999999999" />
+   <origin xyz="1.370000000000e-03 0.000000000000e+00 -6.410000000000e-03" />
+   <inertia ixx="3.89601e-05" ixy="-3.8140000000000003e-08" ixz="-2.2962199999999998e-06" iyy="7.2546500000000001e-05" iyz="-6.4599999999999996e-09" izz="5.3764999999999998e-05" />
+  </inertial>
+ </link>
+ <joint name="HeadPitch" type="revolute">
+  <parent link="NeckPitchLink" />
+  <child link="HeadPitchLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 9.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.3490658503988659" upper="0.27925268031909273" velocity="1.9000003303060669" effort="2.5699999999999998" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="HeadPitch" />
+ <link name="HeadRollLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_HeadRollLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_HeadRollLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="12.412800000000001" />
+   <origin xyz="5.779790000000e-02 -1.060030000000e-02 9.303330000000e-02" />
+   <inertia ixx="11.0518" ixy="-0.0020102200000000001" ixz="0.0065904300000000004" iyy="11.090299999999999" iyz="0.0079960299999999995" izz="11.0627" />
+  </inertial>
+ </link>
+ <joint name="HeadRoll" type="revolute">
+  <parent link="HeadPitchLink" />
+  <child link="HeadRollLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.3490658503988659" upper="0.3490658503988659" velocity="1.5000005363462507" effort="0.90000000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="HeadRoll" />
+ <link name="LShoulderPitchLink">
+  <inertial>
+   <mass value="0.69401999999999997" />
+   <origin xyz="1.490000000000e-03 -3.299000000000e-02 1.800000000000e-04" />
+   <inertia ixx="0.0020100399999999998" ixy="2.3759500000000001e-06" ixz="-2.16793e-06" iyy="0.00057062599999999997" iyz="8.2783199999999997e-06" izz="0.00194068" />
+  </inertial>
+ </link>
+ <joint name="LShoulderPitch" type="revolute">
+  <parent link="torso" />
+  <child link="LShoulderPitchLink" />
+  <origin xyz="5.000000000000e-03 1.900000000000e-01 0.000000000000e+00" rpy="-1.588791155192e-01 -7.251896630669e-02 -4.246822237459e-01" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.444780064142402" upper="2.220407874387186" velocity="2.2000049754313724" effort="19.094999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LShoulderPitch" />
+ <link name="LShoulderYawLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LShoulderYawLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LShoulderYawLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.57150999999999996" />
+   <origin xyz="9.367000000000e-02 1.373000000000e-02 1.030000000000e-03" />
+   <inertia ixx="0.00074281800000000002" ixy="-0.00061767500000000004" ixz="-7.2843799999999995e-05" iyy="0.0065020199999999998" iyz="-1.2515699999999999e-05" izz="0.0066443400000000003" />
+  </inertial>
+ </link>
+ <joint name="LShoulderYaw" type="revolute">
+  <parent link="LShoulderPitchLink" />
+  <child link="LShoulderYawLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="-3.987981058088e-18 4.200023456872e-17 4.304575347364e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.43047149737038543" upper="1.1403195934367552" velocity="3.9999979395981642" effort="9.0310000000000006" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LShoulderYaw" />
+ <link name="LElbowRollLink">
+  <inertial>
+   <mass value="0.39848" />
+   <origin xyz="-2.231000000000e-02 -2.400000000000e-03 0.000000000000e+00" />
+   <inertia ixx="0.00017900300000000001" ixy="-2.2555499999999999e-06" ixz="1.376e-08" iyy="0.000804322" iyz="8.0070000000000002e-08" izz="0.00077956" />
+  </inertial>
+ </link>
+ <joint name="LElbowRoll" type="revolute">
+  <parent link="LShoulderYawLink" />
+  <child link="LElbowRollLink" />
+  <origin xyz="2.050000000000e-01 -2.860802494153e-18 -1.976446826788e-17" rpy="1.745200097630e-01 4.200023456872e-17 -1.529978407269e-17" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0943951023931953" upper="2.0943951023931953" velocity="3.6999932944728591" effort="7.4039999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LElbowRoll" />
+ <link name="LElbowYawLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LElbowYawLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LElbowYawLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.31264999999999998" />
+   <origin xyz="6.738000000000e-02 1.043000000000e-02 -3.100000000000e-04" />
+   <inertia ixx="0.000375096" ixy="-0.000225283" ixz="2.5807300000000001e-06" iyy="0.00209728" iyz="2.7461299999999998e-06" izz="0.0021106499999999999" />
+  </inertial>
+ </link>
+ <joint name="LElbowYaw" type="revolute">
+  <parent link="LElbowRollLink" />
+  <child link="LElbowYawLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="2.199852792097e-17 3.870564698082e-17 -2.236003649334e-17" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.5707998174534008" upper="0" velocity="3.9999979395981642" effort="6.0199999999999996" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LElbowYaw" />
+ <link name="LWristRollLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LWristRollLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LWristRollLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.17563000000000001" />
+   <origin xyz="-5.930000000000e-02 -5.000000000000e-05 -6.900000000000e-04" />
+   <inertia ixx="6.7214500000000005e-05" ixy="-6.3730000000000002e-07" ixz="-1.3580900000000001e-05" iyy="0.00085119600000000003" iyz="-2.4430000000000001e-08" izz="0.00084034799999999998" />
+  </inertial>
+ </link>
+ <joint name="LWristRoll" type="revolute">
+  <parent link="LElbowYawLink" />
+  <child link="LWristRollLink" />
+  <origin xyz="1.823000000000e-01 -8.061941873804e-18 -1.090990347464e-17" rpy="2.199852792097e-17 3.870564698082e-17 -2.236003649334e-17" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-3.6651914291880923" upper="0.52359877559829882" velocity="1.1000007423864342" effort="2.177" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LWristRoll" />
+ <link name="LWristYawLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LWristYawLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LWristYawLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.075950000000000004" />
+   <origin xyz="-7.460000000000e-03 -1.600000000000e-04 -2.200000000000e-04" />
+   <inertia ixx="1.45402e-05" ixy="-4.1570000000000001e-08" ixz="7.6739999999999998e-08" iyy="3.9190699999999997e-05" iyz="3.0800000000000001e-09" izz="3.8178700000000001e-05" />
+  </inertial>
+ </link>
+ <joint name="LWristYaw" type="revolute">
+  <parent link="LWristRollLink" />
+  <child link="LWristYawLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="2.199852792097e-17 3.870564698082e-17 -2.236003649334e-17" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.43633231299858238" upper="0.43633231299858238" velocity="2.2599919418224172" effort="0.86199999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LWristYaw" />
+ <link name="l_wrist">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_l_wrist.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_l_wrist.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.1656899999999999" />
+   <origin xyz="8.713870000000e-02 -5.415500000000e-04 -1.739170000000e-02" />
+   <inertia ixx="1.0001599999999999" ixy="3.6356899999999997e-05" ixz="6.9544500000000005e-05" iyy="1.00119" iyz="-5.5386699999999996e-06" izz="1.0012099999999999" />
+  </inertial>
+ </link>
+ <joint name="LWristPitch" type="revolute">
+  <parent link="LWristYawLink" />
+  <child link="l_wrist" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="2.199852792097e-17 3.870564698082e-17 -2.236003649334e-17" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.97738438111682457" upper="0.97738438111682457" velocity="3.7499969775424966" effort="0.59999999999999998" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LWristPitch" />
+ <link name="RShoulderPitchLink">
+  <inertial>
+   <mass value="0.69401999999999997" />
+   <origin xyz="1.490000000000e-03 3.299000000000e-02 1.800000000000e-04" />
+   <inertia ixx="0.0020100399999999998" ixy="-2.3759500000000001e-06" ixz="2.16793e-06" iyy="0.00057062599999999997" iyz="8.2783199999999997e-06" izz="0.00194068" />
+  </inertial>
+ </link>
+ <joint name="RShoulderPitch" type="revolute">
+  <parent link="torso" />
+  <child link="RShoulderPitchLink" />
+  <origin xyz="5.000000000000e-03 -1.900000000000e-01 0.000000000000e+00" rpy="1.588791155192e-01 -7.251896630669e-02 4.246822237459e-01" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.444780064142402" upper="2.220407874387186" velocity="2.2000049754313724" effort="19.094999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RShoulderPitch" />
+ <link name="RShoulderYawLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RShoulderYawLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RShoulderYawLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.57150999999999996" />
+   <origin xyz="9.367000000000e-02 -1.373000000000e-02 1.030000000000e-03" />
+   <inertia ixx="0.00074235600000000001" ixy="0.00061720199999999996" ixz="5.9852099999999997e-06" iyy="0.0064998900000000004" iyz="-1.07417e-06" izz="0.00066420900000000002" />
+  </inertial>
+ </link>
+ <joint name="RShoulderYaw" type="revolute">
+  <parent link="RShoulderPitchLink" />
+  <child link="RShoulderYawLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="3.987981058088e-18 4.200023456872e-17 -4.304575347364e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.1403195934367552" upper="0.43047149737038543" velocity="3.9999979395981642" effort="9.0310000000000006" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RShoulderYaw" />
+ <link name="RElbowRollLink">
+  <inertial>
+   <mass value="0.39848" />
+   <origin xyz="-2.231000000000e-02 2.400000000000e-03 0.000000000000e+00" />
+   <inertia ixx="0.00017900300000000001" ixy="-2.2555499999999999e-06" ixz="1.376e-08" iyy="0.000804322" iyz="8.0070000000000002e-08" izz="0.00077956" />
+  </inertial>
+ </link>
+ <joint name="RElbowRoll" type="revolute">
+  <parent link="RShoulderYawLink" />
+  <child link="RElbowRollLink" />
+  <origin xyz="2.050000000000e-01 2.860802494153e-18 -1.976446826788e-17" rpy="-1.745200097630e-01 4.200023456872e-17 1.529978407269e-17" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0943951023931953" upper="2.0943951023931953" velocity="3.6999932944728591" effort="7.4039999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RElbowRoll" />
+ <link name="RElbowYawLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RElbowYawLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RElbowYawLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.31264999999999998" />
+   <origin xyz="6.738000000000e-02 -1.043000000000e-02 -3.100000000000e-04" />
+   <inertia ixx="0.00036672799999999998" ixy="0.00018563100000000001" ixz="-5.37905e-07" iyy="0.0021110399999999998" iyz="3.1931999999999998e-07" izz="0.00021149299999999999" />
+  </inertial>
+ </link>
+ <joint name="RElbowYaw" type="revolute">
+  <parent link="RElbowRollLink" />
+  <child link="RElbowYawLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="-2.199852792097e-17 3.870564698082e-17 2.236003649334e-17" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="0" upper="1.5707998174534008" velocity="3.9999979395981642" effort="6.0199999999999996" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RElbowYaw" />
+ <link name="RWristRollLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RWristRollLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RWristRollLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.17563000000000001" />
+   <origin xyz="-5.930000000000e-02 5.000000000000e-05 -6.900000000000e-04" />
+   <inertia ixx="6.7214500000000005e-05" ixy="-6.3730000000000002e-07" ixz="-1.3580900000000001e-05" iyy="0.00085119600000000003" iyz="-2.4430000000000001e-08" izz="0.00084034799999999998" />
+  </inertial>
+ </link>
+ <joint name="RWristRoll" type="revolute">
+  <parent link="RElbowYawLink" />
+  <child link="RWristRollLink" />
+  <origin xyz="1.823000000000e-01 8.061941873804e-18 -1.090990347464e-17" rpy="-2.199852792097e-17 3.870564698082e-17 2.236003649334e-17" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.52359877559829882" upper="3.6651914291880923" velocity="1.1000007423864342" effort="2.177" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RWristRoll" />
+ <link name="RWristYawLink">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RWristYawLink.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RWristYawLink.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.075950000000000004" />
+   <origin xyz="-7.460000000000e-03 1.600000000000e-04 -2.200000000000e-04" />
+   <inertia ixx="1.45402e-05" ixy="-4.1570000000000001e-08" ixz="7.6739999999999998e-08" iyy="3.9190699999999997e-05" iyz="3.0800000000000001e-09" izz="3.8178700000000001e-05" />
+  </inertial>
+ </link>
+ <joint name="RWristYaw" type="revolute">
+  <parent link="RWristRollLink" />
+  <child link="RWristYawLink" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="-2.199852792097e-17 3.870564698082e-17 2.236003649334e-17" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.43633231299858238" upper="0.43633231299858238" velocity="2.2599919418224172" effort="0.86199999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RWristYaw" />
+ <link name="r_wrist">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_r_wrist.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_r_wrist.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.1656899999999999" />
+   <origin xyz="8.713870000000e-02 5.415500000000e-04 -1.739170000000e-02" />
+   <inertia ixx="1.0001599999999999" ixy="1.09014e-05" ixz="5.2504099999999998e-05" iyy="1.00119" iyz="-9.9374299999999995e-06" izz="1.0012099999999999" />
+  </inertial>
+ </link>
+ <joint name="RWristPitch" type="revolute">
+  <parent link="RWristYawLink" />
+  <child link="r_wrist" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="-2.199852792097e-17 3.870564698082e-17 2.236003649334e-17" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.97738438111682457" upper="0.97738438111682457" velocity="3.7499969775424966" effort="0.59999999999999998" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RWristPitch" />
+</robot>
+

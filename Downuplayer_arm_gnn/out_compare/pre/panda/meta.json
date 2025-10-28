@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/gnn_arm_dataset/panda.urdf",
+  "scale_mean_edge_len": 0.12828852772627883,
+  "n_nodes": 13,
+  "n_edges": 12,
+  "x_shape": [
+    13,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    12
+  ],
+  "edge_attr_shape": [
+    12,
+    0
+  ]
+}

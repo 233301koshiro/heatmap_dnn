@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/merge_joint_robots/merge_b1-z1.urdf",
+  "scale_mean_edge_len": 0.23886414171872447,
+  "n_nodes": 20,
+  "n_edges": 19,
+  "x_shape": [
+    20,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    19
+  ],
+  "edge_attr_shape": [
+    19,
+    0
+  ]
+}

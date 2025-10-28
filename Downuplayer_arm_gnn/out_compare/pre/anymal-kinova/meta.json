@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/urdf_robot_gnn/anymal-kinova.urdf",
+  "scale_mean_edge_len": 0.17763687341172207,
+  "n_nodes": 37,
+  "n_edges": 36,
+  "x_shape": [
+    37,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    36
+  ],
+  "edge_attr_shape": [
+    36,
+    0
+  ]
+}

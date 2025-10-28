@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/gnn_arm_dataset/baxter.urdf",
+  "scale_mean_edge_len": 0.162454181092581,
+  "n_nodes": 57,
+  "n_edges": 56,
+  "x_shape": [
+    57,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    56
+  ],
+  "edge_attr_shape": [
+    56,
+    0
+  ]
+}

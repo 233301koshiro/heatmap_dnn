@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/gnn_arm_dataset/ur3_gripper.urdf",
+  "scale_mean_edge_len": 0.10801676749570144,
+  "n_nodes": 11,
+  "n_edges": 10,
+  "x_shape": [
+    11,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    10
+  ],
+  "edge_attr_shape": [
+    10,
+    0
+  ]
+}

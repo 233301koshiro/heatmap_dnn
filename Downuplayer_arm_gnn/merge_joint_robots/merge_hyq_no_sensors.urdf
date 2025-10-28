@@ -1,0 +1,445 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.01" length="0.01" />
+   </geometry>
+  </visual>
+  <visual>
+   <origin xyz="2.851500000000e-01 0.000000000000e+00 1.009714000000e-01" rpy="3.141592653590e+00 1.224646799147e-16 3.141592653590e+00" />
+   <geometry>
+    <box size="3.290000000000e-02 2.440000000000e-02 1.110000000000e-02" />
+   </geometry>
+   <material name="mat__0">
+    <color rgba="0 0 0 0.9" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="60.978000000000002" />
+   <origin xyz="5.606910000000e-02 2.149370000000e-02 3.608110000000e-03" />
+   <inertia ixx="1.57277" ixy="0.028466200000000001" ixz="-0.203539" iyy="8.5027399999999993" iyz="-0.0044243199999999998" izz="9.1964900000000007" />
+  </inertial>
+ </link>
+ <link name="lf_hipassembly">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_lf_hipassembly.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_lf_hipassembly.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.9300000000000002" />
+   <origin xyz="4.263000000000e-02 0.000000000000e+00 1.693100000000e-01" />
+   <inertia ixx="0.050709999999999998" ixy="-4.0000000000000003e-05" ixz="-0.0015900000000000001" iyy="0.054859999999999999" iyz="-5.0000000000000002e-05" izz="0.0057099999999999998" />
+  </inertial>
+ </link>
+ <joint name="lf_haa_joint" type="revolute">
+  <parent link="base_link" />
+  <child link="lf_hipassembly" />
+  <origin xyz="3.735000000000e-01 2.070000000000e-01 0.000000000000e+00" rpy="3.141592653590e+00 1.570796326795e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.2217304763960306" upper="0.43633231299858238" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="lf_haa_joint" />
+ <link name="lf_upperleg">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_lf_upperleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_lf_upperleg.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.6379999999999999" />
+   <origin xyz="1.507400000000e-01 -2.625000000000e-02 0.000000000000e+00" />
+   <inertia ixx="0.0036800000000000001" ixy="-0.0030200000000000001" ixz="0.0001" iyy="0.027189999999999999" iyz="2.0000000000000002e-05" izz="0.02811" />
+  </inertial>
+ </link>
+ <joint name="lf_hfe_joint" type="revolute">
+  <parent link="lf_hipassembly" />
+  <child link="lf_upperleg" />
+  <origin xyz="8.000000000000e-02 -5.168676241258e-18 1.776356839315e-17" rpy="1.570796326795e+00 -4.440892098394e-16 -5.048709793414e-29" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.87266462599716477" upper="1.2217304763960306" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="lf_hfe_joint" />
+ <link name="lf_lowerleg">
+  <visual>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__1">
+    <color rgba="0 0 0 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_lf_lowerleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="1.730000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="-0.000000000000e+00 -1.570796326790e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.02" length="0.34599999999999997" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__2">
+    <color rgba="0 0 0 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.88100100000000003" />
+   <origin xyz="1.254000000000e-01 4.000000000000e-05 -9.999990000000e-05" />
+   <inertia ixx="0.00047100000000000001" ixy="6.0999999999999999e-05" ixz="-1.1e-05" iyy="0.012560999999999999" iyz="-9.9999999999999995e-07" izz="0.012331" />
+  </inertial>
+ </link>
+ <joint name="lf_kfe_joint" type="revolute">
+  <parent link="lf_upperleg" />
+  <child link="lf_lowerleg" />
+  <origin xyz="3.500000000000e-01 1.332267629513e-16 1.796276843784e-18" rpy="-5.048709793414e-29 -4.823834043056e-29 4.440892098394e-16" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-2.4434609527920612" upper="-0.3490658503988659" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="lf_kfe_joint" />
+ <link name="rf_hipassembly">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_rf_hipassembly.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_rf_hipassembly.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.9300000000000002" />
+   <origin xyz="4.263000000000e-02 0.000000000000e+00 -1.693100000000e-01" />
+   <inertia ixx="0.050709999999999998" ixy="4.0000000000000003e-05" ixz="0.0015900000000000001" iyy="0.054859999999999999" iyz="-5.0000000000000002e-05" izz="0.0057099999999999998" />
+  </inertial>
+ </link>
+ <joint name="rf_haa_joint" type="revolute">
+  <parent link="base_link" />
+  <child link="rf_hipassembly" />
+  <origin xyz="3.735000000000e-01 -2.070000000000e-01 0.000000000000e+00" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.2217304763960306" upper="0.43633231299858238" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="rf_haa_joint" />
+ <link name="rf_upperleg">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_rf_upperleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_rf_upperleg.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.6379999999999999" />
+   <origin xyz="1.507400000000e-01 -2.625000000000e-02 0.000000000000e+00" />
+   <inertia ixx="0.0036800000000000001" ixy="-0.0030200000000000001" ixz="0.0001" iyy="0.027189999999999999" iyz="2.0000000000000002e-05" izz="0.02811" />
+  </inertial>
+ </link>
+ <joint name="rf_hfe_joint" type="revolute">
+  <parent link="rf_hipassembly" />
+  <child link="rf_upperleg" />
+  <origin xyz="8.000000000000e-02 0.000000000000e+00 -4.898587196589e-18" rpy="-1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.87266462599716477" upper="1.2217304763960306" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="rf_hfe_joint" />
+ <link name="rf_lowerleg">
+  <visual>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__3">
+    <color rgba="0 0 0 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_rf_lowerleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="1.730000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="-0.000000000000e+00 -1.570796326790e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.02" length="0.34599999999999997" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__4">
+    <color rgba="0 0 0 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.88100100000000003" />
+   <origin xyz="1.254000000000e-01 4.000000000000e-05 -9.999990000000e-05" />
+   <inertia ixx="0.00047100000000000001" ixy="6.0999999999999999e-05" ixz="-1.1e-05" iyy="0.012560999999999999" iyz="-9.9999999999999995e-07" izz="0.012331" />
+  </inertial>
+ </link>
+ <joint name="rf_kfe_joint" type="revolute">
+  <parent link="rf_upperleg" />
+  <child link="rf_lowerleg" />
+  <origin xyz="3.500000000000e-01 2.143131898508e-17 -1.312289809829e-33" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-2.4434609527920612" upper="-0.3490658503988659" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="rf_kfe_joint" />
+ <link name="lh_hipassembly">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_lh_hipassembly.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_lh_hipassembly.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.9300000000000002" />
+   <origin xyz="4.263000000000e-02 0.000000000000e+00 -1.693100000000e-01" />
+   <inertia ixx="0.050709999999999998" ixy="4.0000000000000003e-05" ixz="0.0015900000000000001" iyy="0.054859999999999999" iyz="-5.0000000000000002e-05" izz="0.0057099999999999998" />
+  </inertial>
+ </link>
+ <joint name="lh_haa_joint" type="revolute">
+  <parent link="base_link" />
+  <child link="lh_hipassembly" />
+  <origin xyz="-3.735000000000e-01 2.070000000000e-01 0.000000000000e+00" rpy="3.141592653590e+00 1.570796326795e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.2217304763960306" upper="0.43633231299858238" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="lh_haa_joint" />
+ <link name="lh_upperleg">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_lh_upperleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_lh_upperleg.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.6379999999999999" />
+   <origin xyz="1.507400000000e-01 2.625000000000e-02 0.000000000000e+00" />
+   <inertia ixx="0.0036800000000000001" ixy="0.0030200000000000001" ixz="-0.0001" iyy="0.027189999999999999" iyz="2.0000000000000002e-05" izz="0.02811" />
+  </inertial>
+ </link>
+ <joint name="lh_hfe_joint" type="revolute">
+  <parent link="lh_hipassembly" />
+  <child link="lh_upperleg" />
+  <origin xyz="8.000000000000e-02 -5.168676241258e-18 1.776356839315e-17" rpy="1.570796326795e+00 -4.440892098394e-16 -5.048709793414e-29" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.2217304763960306" upper="0.87266462599716477" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="lh_hfe_joint" />
+ <link name="lh_lowerleg">
+  <visual>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__5">
+    <color rgba="0 0 0 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_lh_lowerleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="1.730000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="-0.000000000000e+00 -1.570796326790e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.02" length="0.34599999999999997" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__6">
+    <color rgba="0 0 0 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.88100100000000003" />
+   <origin xyz="1.254000000000e-01 -4.000000000000e-05 9.999990000000e-05" />
+   <inertia ixx="0.00047100000000000001" ixy="-5.8999999999999998e-05" ixz="9.0000199999999999e-06" iyy="0.012560999999999999" iyz="-9.9999999999999995e-07" izz="0.012331" />
+  </inertial>
+ </link>
+ <joint name="lh_kfe_joint" type="revolute">
+  <parent link="lh_upperleg" />
+  <child link="lh_lowerleg" />
+  <origin xyz="3.500000000000e-01 1.332267629513e-16 1.796276843784e-18" rpy="-5.048709793414e-29 -4.823834043056e-29 4.440892098394e-16" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="0.3490658503988659" upper="2.4434609527920612" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="lh_kfe_joint" />
+ <link name="rh_hipassembly">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_rh_hipassembly.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_rh_hipassembly.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.9300000000000002" />
+   <origin xyz="4.263000000000e-02 0.000000000000e+00 1.693100000000e-01" />
+   <inertia ixx="0.050709999999999998" ixy="-4.0000000000000003e-05" ixz="-0.0015900000000000001" iyy="0.054859999999999999" iyz="-5.0000000000000002e-05" izz="0.0057099999999999998" />
+  </inertial>
+ </link>
+ <joint name="rh_haa_joint" type="revolute">
+  <parent link="base_link" />
+  <child link="rh_hipassembly" />
+  <origin xyz="-3.735000000000e-01 -2.070000000000e-01 0.000000000000e+00" rpy="-0.000000000000e+00 1.570796326795e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.2217304763960306" upper="0.43633231299858238" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="rh_haa_joint" />
+ <link name="rh_upperleg">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_rh_upperleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_rh_upperleg.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2.6379999999999999" />
+   <origin xyz="1.507400000000e-01 2.625000000000e-02 0.000000000000e+00" />
+   <inertia ixx="0.0036800000000000001" ixy="0.0030200000000000001" ixz="-0.0001" iyy="0.027189999999999999" iyz="2.0000000000000002e-05" izz="0.02811" />
+  </inertial>
+ </link>
+ <joint name="rh_hfe_joint" type="revolute">
+  <parent link="rh_hipassembly" />
+  <child link="rh_upperleg" />
+  <origin xyz="8.000000000000e-02 0.000000000000e+00 -4.898587196589e-18" rpy="-1.570796326795e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.2217304763960306" upper="0.87266462599716477" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="rh_hfe_joint" />
+ <link name="rh_lowerleg">
+  <visual>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__7">
+    <color rgba="0 0 0 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_rh_lowerleg.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="1.730000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="-0.000000000000e+00 -1.570796326790e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.02" length="0.34599999999999997" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="3.460000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="1.570796326793e+00 3.463840325679e-12 -1.570796326793e+00" />
+   <geometry>
+    <sphere radius="0.021749999999999999" />
+   </geometry>
+   <material name="mat__8">
+    <color rgba="0 0 0 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.88100100000000003" />
+   <origin xyz="1.254000000000e-01 -4.000000000000e-05 9.999990000000e-05" />
+   <inertia ixx="0.00047100000000000001" ixy="-5.8999999999999998e-05" ixz="9.0000199999999999e-06" iyy="0.012560999999999999" iyz="-9.9999999999999995e-07" izz="0.012331" />
+  </inertial>
+ </link>
+ <joint name="rh_kfe_joint" type="revolute">
+  <parent link="rh_upperleg" />
+  <child link="rh_lowerleg" />
+  <origin xyz="3.500000000000e-01 2.143131898508e-17 -1.312289809829e-33" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="0.3490658503988659" upper="2.4434609527920612" velocity="11.999993818794492" effort="150" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="rh_kfe_joint" />
+</robot>
+

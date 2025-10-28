@@ -1,0 +1,18 @@
+{
+  "input": "/home/irsl/heatmap_dnn/Downuplayer_arm_gnn/fixed_joint_robots/gnn_arm_dataset/finger_edu.urdf",
+  "scale_mean_edge_len": 0.12430485141922379,
+  "n_nodes": 6,
+  "n_edges": 5,
+  "x_shape": [
+    6,
+    19
+  ],
+  "edge_index_shape": [
+    2,
+    5
+  ],
+  "edge_attr_shape": [
+    5,
+    0
+  ]
+}
