@@ -27,7 +27,7 @@ from urdf_to_graph_utilis import (
     #check_z_stats, compute_recon_metrics_origscale,
 
     # min-max 正規化用
-    apply_global_minmax_inplace_to_dataset, print_minmax_stats, compute_recon_metrics_origscale,
+    apply_global_minmax_inplace_to_dataset, print_minmax_stats, compute_recon_metrics_origscale,compute_feature_mean_std_from_dataset, print_feature_mean_std
 )
 
 from gnn_network_min import (
@@ -47,14 +47,7 @@ def build_data(urdf_path: str, normalize_by: str = "none") -> Data:
     d = to_pyg(S, nodes, X, edge_index, E)
     d.name = urdf_path
     return d
-def make_seed(user_seed: int | None) -> int:
-    """user_seed が None なら安全に新規 seed を作る（32bit）。"""
-    if user_seed is not None:
-        return int(user_seed)
-    # 時刻ns・PID・OS乱数を混ぜて、さらに secrets で仕上げ
-    rnd = time.time_ns() ^ os.getpid() ^ int.from_bytes(os.urandom(2), "little")
-    rnd ^= secrets.randbits(32)
-    return rnd & 0xFFFFFFFF  # 0..2^32-1
+
 
 def parse_args():
     ap = argparse.ArgumentParser(description="Minimal AE debug runner with optional training utilities")
@@ -112,7 +105,11 @@ def main():
     if not dataset:
         raise RuntimeError("有効なグラフが0件。URDFや抽出設定を見直してください。")
     
+    #datasetの統計表示
     minimal_dataset_report(dataset)
+    data_stats = compute_feature_mean_std_from_dataset(dataset, cols=None, population_std=True)
+    print_feature_mean_std(data_stats, feature_names=FEATURE_NAMES)
+    
     # 統計計算 → 適用 → 非有限チェック
     #stats_z = compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS)
     #check_z_stats(stats_z)

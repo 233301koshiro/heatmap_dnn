@@ -258,7 +258,7 @@ def dump_normalized_feature_table(Xn, stats, max_rows=5, feature_names=None):
         nz = " | ".join(f"{Xn_np[i, c]:.3f}"    for c in cols)
         orv= " | ".join(f"{Xorig_np[i, c]:.3g}" for c in cols)
         print(f"{i:>3} | {nz}   || orig: {orv}")
-        
+
 # =========================================================
 # 3) XML/URDFユーティリティ（数値パース / リミット整形 / ルート読込）
 # =========================================================
@@ -1130,6 +1130,63 @@ def compute_recon_metrics_origscale(
                           for kk, vv in v.items()}
                       for k, v in per_robot.items()}
     }
+def compute_feature_mean_std_from_dataset(
+    dataset: Sequence[torch.Tensor] | Sequence["Data"],
+    cols: Optional[Sequence[int]] = None,
+    drop_nonfinite: bool = True,
+    population_std: bool = True,
+) -> Dict[str, Any]:
+    """
+    正規化前の dataset から、列ごとの mean/std/count を集計する。
+    - cols=None: 先頭グラフの全列を対象
+    - drop_nonfinite=True: 非有限(NaN/Inf)は無視
+    - population_std=True: 母標準偏差（ddof=0）。Falseで標本標準偏差（ddof=1）
+    """
+    mats = []
+    for d in dataset:
+        X = d.x.detach().cpu().numpy()
+        mats.append(X)
+    M = np.vstack(mats)  # (total_nodes, F)
+
+    if cols is None:
+        cols = list(range(M.shape[1]))
+    else:
+        cols = list(cols)
+
+    A = M[:, cols].astype(np.float64, copy=True)
+
+    if drop_nonfinite:
+        mask = np.isfinite(A)
+        # 列ごとの有限フラグ（行方向にAND）
+        valid = np.all(mask, axis=1)
+        A = A[valid]
+
+    ddof = 0 if population_std else 1
+    mean = np.nanmean(A, axis=0)
+    std  = np.nanstd(A, axis=0, ddof=ddof)
+    cnt  = np.sum(np.all(np.isfinite(A), axis=1))
+
+    return {
+        "cols": cols,
+        "mean": mean.tolist(),
+        "std":  std.tolist(),
+        "count": int(cnt),
+        "ddof": ddof,
+        "method": "data_stats",
+    }
+
+def print_feature_mean_std(stats: Dict[str, Any], feature_names=None) -> None:
+    cols = stats["cols"]
+    mean = stats["mean"]
+    std  = stats["std"]
+    print("-" * 72)
+    print(f"{'col':>3} | {'feat':<18} | {'mean':>12} | {'std':>12}")
+    print("-" * 72)
+    for c, mu, sd in zip(cols, mean, std):
+        fname = (feature_names[c] if feature_names and 0 <= c < len(feature_names) else f"f{c}")
+        print(f"{c:>3} | {fname:<18} | {mu:>12.6g} | {sd:>12.6g}")
+    print("-" * 72)
+    
 
 
 # =========================================================
