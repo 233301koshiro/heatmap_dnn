@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # debug.py — デフォは1epoch・保存なし。必要に応じて学習ユーティリティを引数でON。
 from __future__ import annotations
-
+import numpy as np
 # ===== Stdlib =====
-import argparse, time, random, os, csv
+import argparse, time, random, os, csv,random
 from glob import glob
 from typing import List
 
@@ -18,11 +18,16 @@ from urdf_to_graph_utilis import (
     urdf_to_feature_graph, ExtractConfig, to_pyg,
     # レポート/デバッグ
     minimal_dataset_report, assert_finite_data, scan_nonfinite_features,
-    # 正規化
-    DEFAULT_Z_COLS, compute_global_z_stats_from_dataset,
-    apply_global_z_inplace_to_dataset, print_z_stats, dump_normalized_feature_table,
+    # z-score正規化
+    #DEFAULT_Z_COLS, compute_global_z_stats_from_dataset,
+    #apply_global_z_inplace_to_dataset, print_z_stats, dump_normalized_feature_table,
+    #min-max正規化用
+    DEFAULT_Z_COLS,FEATURE_NAMES, compute_global_minmax_stats_from_dataset,dump_normalized_feature_table,
     # Z統計チェック / 追加メトリクス
-    check_z_stats, compute_recon_metrics_origscale,
+    #check_z_stats, compute_recon_metrics_origscale,
+
+    # min-max 正規化用
+    apply_global_minmax_inplace_to_dataset, print_minmax_stats, compute_recon_metrics_origscale,
 )
 
 from gnn_network_min import (
@@ -42,6 +47,14 @@ def build_data(urdf_path: str, normalize_by: str = "none") -> Data:
     d = to_pyg(S, nodes, X, edge_index, E)
     d.name = urdf_path
     return d
+def make_seed(user_seed: int | None) -> int:
+    """user_seed が None なら安全に新規 seed を作る（32bit）。"""
+    if user_seed is not None:
+        return int(user_seed)
+    # 時刻ns・PID・OS乱数を混ぜて、さらに secrets で仕上げ
+    rnd = time.time_ns() ^ os.getpid() ^ int.from_bytes(os.urandom(2), "little")
+    rnd ^= secrets.randbits(32)
+    return rnd & 0xFFFFFFFF  # 0..2^32-1
 
 def parse_args():
     ap = argparse.ArgumentParser(description="Minimal AE debug runner with optional training utilities")
@@ -101,9 +114,14 @@ def main():
     
     minimal_dataset_report(dataset)
     # 統計計算 → 適用 → 非有限チェック
-    stats_z = compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS)
-    check_z_stats(stats_z)
-    apply_global_z_inplace_to_dataset(dataset, stats_z)
+    #stats_z = compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS)
+    #check_z_stats(stats_z)
+    #apply_global_z_inplace_to_dataset(dataset, stats_z)
+    # 1回目（適用＋チェック）
+    stats_mm = compute_global_minmax_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS)
+    # （任意）簡易チェック：min/max が有限か見るだけなら下記で十分 
+    assert all(np.isfinite(stats_mm["min"])) and all(np.isfinite(stats_mm["max"])), "min/max not finite"
+    apply_global_minmax_inplace_to_dataset(dataset, stats_mm)
     for d in dataset:
         assert_finite_data(d, getattr(d, "name", "(no name)"))
 
@@ -111,15 +129,27 @@ def main():
     scan_nonfinite_features(dataset, extreme_abs=1e6)
 
     # 再掲：Z 正規化統計の表示とサンプル可視
-    stats_z = compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS)
-    apply_global_z_inplace_to_dataset(dataset, stats_z)
-    print_z_stats(stats_z)
+    # stats_z = compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS)
+    # apply_global_z_inplace_to_dataset(dataset, stats_z)
+    # print_z_stats(stats_z)
+    # try:
+    #     X_example = dataset[0].x.detach().cpu().numpy()
+    #     dump_normalized_feature_table(X_example, stats_z, max_rows=5)
+    # except Exception as e:
+    #     print(f"[WARN] preview dump skipped: {e}")
+    print_minmax_stats(stats_mm)
     try:
         X_example = dataset[0].x.detach().cpu().numpy()
-        dump_normalized_feature_table(X_example, stats_z, max_rows=5)
+        # z 用の可視化ヘルパを流用するなら、min-max を使う前提で自前の表示に差し替え可
+        # dump_normalized_feature_table(X_example, {
+        #     "z_cols": stats_mm["z_cols"],
+        #     "mean":   [0]*len(stats_mm["z_cols"]),   # ダミー（使わない）
+        #     "std":    [1]*len(stats_mm["z_cols"])    # ダミー（使わない）
+        # }, max_rows=5)
+        dump_normalized_feature_table(X_example, stats_mm, max_rows=5, feature_names=FEATURE_NAMES)
+
     except Exception as e:
         print(f"[WARN] preview dump skipped: {e}")
-
     # -----------------------------------------------------
     # Split
     # -----------------------------------------------------
@@ -259,17 +289,39 @@ def main():
     # -----------------------------------------------------
     # 追加メトリクス（元スケール）※任意
     # -----------------------------------------------------
+    # if args.metrics_csv:
+    #     base = args.metrics_csv
+    #     per_robot_csv = base.replace(".csv", "_by_robot.csv")
+    #     compute_recon_metrics_origscale(
+    #         model=model, loader=test_loader, device=device,
+    #         z_stats=compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS),
+    #         feature_names=None,
+    #         out_csv=base,                      # 全体
+    #         out_csv_by_robot=per_robot_csv,    # 追加: ロボット別
+    #         use_mask_only=(args.mask_mode != "none"),
+    #     )
     if args.metrics_csv:
         base = args.metrics_csv
         per_robot_csv = base.replace(".csv", "_by_robot.csv")
+        # compute_recon_metrics_origscale(
+        #     model=model, loader=test_loader, device=device,
+        #     z_stats=compute_global_minmax_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS),  # ←ここをmin-maxに
+        #     feature_names=None,
+        #     out_csv=base,
+        #     out_csv_by_robot=per_robot_csv,
+        #     use_mask_only=(args.mask_mode != "none"),
+        # )
         compute_recon_metrics_origscale(
             model=model, loader=test_loader, device=device,
-            z_stats=compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS),
+            z_stats=stats_mm,   # ←最初に取った統計を再利用
             feature_names=None,
-            out_csv=base,                      # 全体
-            out_csv_by_robot=per_robot_csv,    # 追加: ロボット別
+            out_csv=base,
+            out_csv_by_robot=per_robot_csv,
             use_mask_only=(args.mask_mode != "none"),
         )
+
+
+
 
 
 if __name__ == "__main__":

@@ -59,6 +59,8 @@ DEFAULT_Z_COLS = [0, 1, 2, 9, 10, 11, 12, 13, 14, 16, 17, 18]
 # =========================================================
 # 2) 正規化ユーティリティ（Z統計 / 適用 / 表示 / 逆変換 / サニタイズ）
 # =========================================================
+'''
+# Z正規化統計をデータセット全体から計算
 def compute_global_z_stats_from_dataset(
     dataset: List[Data],
     z_cols: List[int] = DEFAULT_Z_COLS,
@@ -152,8 +154,111 @@ def _denorm_batch(xn: torch.Tensor, stats: Dict[str, Any]) -> torch.Tensor:
     sd = torch.tensor(stats["std"],  dtype=x.dtype, device=x.device)
     x[:, cols] = xn[:, cols] * sd + mu
     return x
+'''
 
+# ======== Min-Max 正規化ユーティリティ =========
+def compute_global_minmax_stats_from_dataset(
+    dataset: List[Data],
+    z_cols: List[int] = DEFAULT_Z_COLS,
+    eps: float = 1e-8
+) -> Dict[str, Any]:
+    """
+    データセット全体で各列の min/max を計算（NaN/Inf は無視）。
+    max==min の列は幅を1にフォールバックしてゼロ割を回避。
+    """
+    stacked = []
+    for d in dataset:
+        A = d.x.detach().cpu().numpy()[:, z_cols].astype(np.float64, copy=True)
+        A[~np.isfinite(A)] = np.nan
+        stacked.append(A)
+    M = np.vstack(stacked)
+    vmin = np.nanmin(M, axis=0)
+    vmax = np.nanmax(M, axis=0)
 
+    # 非有限はデフォ値へ、幅0は1へ
+    vmin = np.where(np.isfinite(vmin), vmin, 0.0)
+    vmax = np.where(np.isfinite(vmax), vmax, 1.0)
+    width = vmax - vmin
+    width = np.where((width > 0) & np.isfinite(width), width, 1.0)
+
+    return {
+        "z_cols": list(z_cols),
+        "min": vmin.tolist(),
+        "max": vmax.tolist(),
+        "width": width.tolist(),  # = max - min（幅0は1に置換済み）
+        "eps": float(eps),
+        "method": "minmax",
+    }
+
+def apply_global_minmax_inplace_to_dataset(dataset: List[Data], stats: Dict[str, Any]) -> None:
+    cols  = stats["z_cols"]
+    vmin  = torch.tensor(stats["min"],   dtype=torch.float32)
+    width = torch.tensor(stats["width"], dtype=torch.float32)
+    for d in dataset:
+        vmin_d  = vmin.to(d.x.device)
+        width_d = width.to(d.x.device)
+        d.x[:, cols] = (d.x[:, cols] - vmin_d) / width_d
+
+def print_minmax_stats(stats: Dict[str, Any], feature_names=FEATURE_NAMES) -> None:
+    cols  = stats["z_cols"]
+    vmin  = np.asarray(stats["min"])
+    vmax  = np.asarray(stats["max"])
+    print("-" * 72)
+    print(f"{'col':>3} | {'feat':<18} | {'min':>12} | {'max':>12}")
+    print("-" * 72)
+    for c, mn, mx in zip(cols, vmin, vmax):
+        fname = (feature_names[c] if 0 <= c < len(feature_names) else f"f{c}")
+        print(f"{c:>3} | {fname:<18} | {mn:>12.6g} | {mx:>12.6g}")
+    print("-" * 72)
+
+def _denorm_batch(xn: torch.Tensor, stats: Dict[str, Any]) -> torch.Tensor:
+    """
+    xn: (N,F) 正規化後
+    stats: Z用({mean,std}) または Min-Max用({min,max,width}) を許容
+    return: (N,F) 元スケール
+    """
+    x = xn.clone()
+    cols = stats["z_cols"]
+    if "std" in stats and "mean" in stats:  # Zスコア
+        mu = torch.tensor(stats["mean"], dtype=x.dtype, device=x.device)
+        sd = torch.tensor(stats["std"],  dtype=x.dtype, device=x.device)
+        x[:, cols] = xn[:, cols] * sd + mu
+    elif "min" in stats and ("width" in stats or "max" in stats):  # Min-Max
+        vmin  = torch.tensor(stats["min"],   dtype=x.dtype, device=x.device)
+        width = torch.tensor(stats.get("width", (torch.tensor(stats["max"], dtype=x.dtype, device=x.device) - vmin).tolist()),
+                             dtype=x.dtype, device=x.device)
+        x[:, cols] = xn[:, cols] * width + vmin
+    else:
+        # 未知の形式→そのまま返す（もしくは例外でもよい）
+        pass
+    return x
+
+def dump_normalized_feature_table(Xn, stats, max_rows=5, feature_names=None):
+    """
+    stats が mean/std（z）でも min/width（min-max）でもOK。
+    正規化後の値と、逆変換した元スケールの値を数行だけ表示。
+    """
+    if not isinstance(Xn, torch.Tensor):
+        Xn_t = torch.tensor(Xn, dtype=torch.float32)
+    else:
+        Xn_t = Xn.detach().clone().float()
+
+    Xorig_t = _denorm_batch(Xn_t, stats)  # 両対応
+    Xn_np    = Xn_t.cpu().numpy()
+    Xorig_np = Xorig_t.cpu().numpy()
+    cols = stats["z_cols"]
+
+    print("---- preview (normalized & original) ----")
+    print("row | " + " | ".join(
+        (feature_names[c] if feature_names and 0 <= c < len(feature_names) else f"f{c}") for c in cols
+    ))
+    print("-" * 72)
+    r = min(len(Xn_np), max_rows)
+    for i in range(r):
+        nz = " | ".join(f"{Xn_np[i, c]:.3f}"    for c in cols)
+        orv= " | ".join(f"{Xorig_np[i, c]:.3g}" for c in cols)
+        print(f"{i:>3} | {nz}   || orig: {orv}")
+        
 # =========================================================
 # 3) XML/URDFユーティリティ（数値パース / リミット整形 / ルート読込）
 # =========================================================
