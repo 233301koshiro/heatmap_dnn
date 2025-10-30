@@ -53,9 +53,10 @@ FEATURE_NAMES = [
     "axis_x","axis_y","axis_z","origin_x","origin_y","origin_z",
     "movable","width","lower","upper"
 ]
-DEFAULT_Z_COLS = [0, 1, 2, 9, 10, 11, 12, 13, 14, 16, 17, 18]
-
-
+#upperとlowerは角度なのでsin/cosに変換前
+#DEFAULT_Z_COLS = [0, 1, 2, 9, 10, 11, 12, 13, 14, 16, 17, 18]
+# 角度をsin/cosに変換する場合
+DEFAULT_Z_COLS = [0, 1, 2, 9, 10, 11, 12, 13, 14, 16]
 # =========================================================
 # 2) 正規化ユーティリティ（Z統計 / 適用 / 表示 / 逆変換 / サニタイズ）
 # =========================================================
@@ -155,6 +156,31 @@ def _denorm_batch(xn: torch.Tensor, stats: Dict[str, Any]) -> torch.Tensor:
     x[:, cols] = xn[:, cols] * sd + mu
     return x
 '''
+#特徴量のうち周期性のあるupperとlowerの角度をsin/cosに変換して埋め込む
+# === 角度の sin/cos 埋め込み =========================
+ANGLE_COLS = [17, 18]  # lower, upper (rad)
+ANGLE_NEW_NAMES = {
+    17: ("lower_sin", "lower_cos"),
+    18: ("upper_sin", "upper_cos"),
+}
+
+def embed_angles_sincos(X: torch.Tensor, feature_names: list[str]) -> tuple[torch.Tensor, list[str]]:
+    cols = sorted(ANGLE_COLS)
+    new_feats = []
+    new_names = []
+    cset = set(cols)
+    for j, name in enumerate(feature_names):
+        if j in cset:
+            theta = X[:, j]
+            new_feats.append(torch.sin(theta).unsqueeze(1))
+            new_feats.append(torch.cos(theta).unsqueeze(1))
+            sn, cn = ANGLE_NEW_NAMES[j]
+            new_names += [sn, cn]
+        else:
+            new_feats.append(X[:, j].unsqueeze(1))
+            new_names.append(name)
+    X2 = torch.cat(new_feats, dim=1)
+    return X2, new_names
 
 # ======== Min-Max 正規化ユーティリティ =========
 def compute_global_minmax_stats_from_dataset(
@@ -1186,7 +1212,7 @@ def print_feature_mean_std(stats: Dict[str, Any], feature_names=None) -> None:
         fname = (feature_names[c] if feature_names and 0 <= c < len(feature_names) else f"f{c}")
         print(f"{c:>3} | {fname:<18} | {mu:>12.6g} | {sd:>12.6g}")
     print("-" * 72)
-    
+
 
 
 # =========================================================
