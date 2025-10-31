@@ -1094,21 +1094,28 @@ def scan_nonfinite_features(dataset: List[Data],
 # =========================================================
 @torch.no_grad()
 def compute_recon_metrics_origscale(
-    model: torch.nn.Module,
+    model,
     loader,
     device,
-    z_stats: Dict[str, Any],
-    feature_names: Optional[List[str]] = None,
-    out_csv: Optional[str] = None,                # 全体集計 (従来どおり)
-    out_csv_by_robot: Optional[str] = None,       # 新規: ロボット別
-    use_mask_only: bool = False,
-) -> Dict[str, Any]:
+    z_stats,
+    feature_names=None,
+    out_csv=None,
+    out_csv_by_robot=None,
+    use_mask_only=False,
+    postprocess_fn=None,   # 逆正規化「後」に表示用の整形をかけたい場合に渡す（学習には不影響）
+):
     """
     モデル出力と正解の Data.x を「元スケール」に戻して誤差を集計。
     - 全体（ALL）の per-feature MAE/RMSE を out_csv へ
     - ロボット別（graph別）の per-feature MAE/RMSE を out_csv_by_robot へ
     - 出力が tuple/list/dict の場合も先頭/既定キーをとってテンソル化
+    - postprocess_fn(pred_o, target_o, feat_names) -> (pred_o, target_o) を用意すると、
+      one-hotスナップやaxisの単位化などを“表示用だけ”に適用可能（学習・推論には無関係）
     """
+    import torch
+    from pathlib import Path
+    import csv as _csv
+
     def _as_tensor(y, ref: torch.Tensor) -> torch.Tensor:
         # tuple / list -> 先頭
         if isinstance(y, (tuple, list)):
@@ -1135,7 +1142,7 @@ def compute_recon_metrics_origscale(
 
     # ---- ロボット別（graph別）集計用バッファ ----
     # name -> {abs_sum, sqr_sum, count, n_nodes_total}
-    per_robot: Dict[str, Dict[str, torch.Tensor]] = {}
+    per_robot = {}
 
     model.eval()
     for batch in loader:
@@ -1160,7 +1167,7 @@ def compute_recon_metrics_origscale(
             sizes = [d.num_nodes for d in data_list]
 
         # （オプション）マスクノード（バッチ基準のindex）
-        mask_idx_batch: Optional[torch.Tensor] = None
+        mask_idx_batch = None
         if use_mask_only and hasattr(batch, "mask_idx") and batch.mask_idx is not None:
             mask_idx_batch = batch.mask_idx.to(device)
 
@@ -1188,6 +1195,10 @@ def compute_recon_metrics_origscale(
             # 元スケールへ
             pred_o   = _denorm_batch(pred_g,   z_stats)
             target_o = _denorm_batch(target_g, z_stats)
+
+            # 表示用の後処理（one-hotスナップ・axis単位化など）
+            if callable(postprocess_fn):
+                pred_o, target_o = postprocess_fn(pred_o, target_o, feat_names)
 
             # 誤差
             err = pred_o - target_o
@@ -1221,7 +1232,6 @@ def compute_recon_metrics_origscale(
     rmse_all = (sqr_sum_all / denom).sqrt().cpu().numpy()
 
     # 表示（従来どおり）
-    print("精度をわかりやすくするためにテストセット全体の各特徴量ごとの再構成誤差を表示しまーーーーーーーーす。")
     print("\n--- Reconstruction error on ORIGINAL scale (per feature) ---")
     print(f"{'idx':>3} | {'feature':<18} | {'MAE':>12} | {'RMSE':>12}")
     print("-" * 56)
@@ -1261,10 +1271,15 @@ def compute_recon_metrics_origscale(
         "mae": mae_all,
         "rmse": rmse_all,
         "feature_names": feat_names,
-        "per_robot": {k: {kk: vv.detach().cpu().numpy().tolist() if hasattr(vv, "detach") else float(vv)
-                          for kk, vv in v.items()}
-                      for k, v in per_robot.items()}
+        "per_robot": {
+            k: {
+                kk: (vv.detach().cpu().numpy().tolist() if hasattr(vv, "detach") else float(vv))
+                for kk, vv in v.items()
+            }
+            for k, v in per_robot.items()
+        },
     }
+
 def compute_feature_mean_std_from_dataset(
     dataset: Sequence[torch.Tensor] | Sequence["Data"],
     cols: Optional[Sequence[int]] = None,
@@ -1324,6 +1339,50 @@ def print_feature_mean_std(stats: Dict[str, Any], feature_names=None) -> None:
     print("-" * 72)
 
 
+# 画面表示だけの後処理（one-hotスナップ & 軸ベクトルの単位化）
+def make_postprocess_fn(names, snap_onehot: bool, unit_axis: bool):
+    if not (snap_onehot or unit_axis):
+        return None
+
+    # one-hot列の位置（長名 jtype_is_* のみで検出）
+    jtype_cols = [i for i, n in enumerate(names) if n.startswith("jtype_is_")]
+
+    # axis列の位置（無ければ None）
+    try:
+        axis_cols = (names.index("axis_x"), names.index("axis_y"), names.index("axis_z"))
+    except ValueError:
+        axis_cols = None
+
+    def _fn(pred_o, target_o, _names):
+        import torch
+        # one-hot: 最大要素を1, それ以外0
+        if snap_onehot and jtype_cols:
+            def snap(M):
+                J = M[:, jtype_cols]
+                if J.numel() > 0:
+                    idx = torch.argmax(J, dim=1)
+                    J.zero_()
+                    J[torch.arange(J.size(0), device=J.device), idx] = 1.0
+                    M[:, jtype_cols] = J
+                return M
+            pred_o = snap(pred_o.clone())
+            target_o = snap(target_o.clone())
+
+        # axis: L2 正規化
+        if unit_axis and axis_cols is not None:
+            def unitize(M):
+                x, y, z = (M[:, axis_cols[0]], M[:, axis_cols[1]], M[:, axis_cols[2]])
+                norm = (x*x + y*y + z*z).sqrt().clamp(min=1e-9)
+                M[:, axis_cols[0]] = x / norm
+                M[:, axis_cols[1]] = y / norm
+                M[:, axis_cols[2]] = z / norm
+                return M
+            pred_o = unitize(pred_o.clone())
+            target_o = unitize(target_o.clone())
+
+        return pred_o, target_o
+
+    return _fn
 
 # =========================================================
 # 12) おまけ：単体実行時のサンプル（merge後URDF群のサイズCSV）

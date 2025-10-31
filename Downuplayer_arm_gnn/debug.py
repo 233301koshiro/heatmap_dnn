@@ -32,7 +32,10 @@ from urdf_to_graph_utilis import (
     ,embed_angles_sincos,
 
     #表示用joint特徴名短縮
-    shorten_feature_names
+    shorten_feature_names,
+
+    #metrics用前処理
+    make_postprocess_fn,
 )
 
 from gnn_network_min import (
@@ -371,13 +374,26 @@ def main():
         #     out_csv_by_robot=per_robot_csv,
         #     use_mask_only=(args.mask_mode != "none"),
         # )
+        feat_names = getattr(test_loader.dataset[0], "feature_names",
+                     [f"f{i}" for i in range(test_loader.dataset[0].num_node_features)])
+        names_long = getattr(test_loader.dataset[0], "feature_names",
+                     [f"f{i}" for i in range(test_loader.dataset[0].num_node_features)])
+        names_disp = getattr(test_loader.dataset[0], "feature_names_disp", names_long)
+        post_fn = make_postprocess_fn(
+            names=names_long,
+            snap_onehot=True,   # 表示専用で one-hot を最大値にスナップ
+            unit_axis=True      # 表示専用で axis を L2 正規化
+        )
         compute_recon_metrics_origscale(
-            model=model, loader=test_loader, device=device,
-            z_stats=stats_mm,   # ←最初に取った統計を再利用
-            feature_names=feat_names_short,
-            out_csv=base,
-            out_csv_by_robot=per_robot_csv,
-            use_mask_only=(args.mask_mode != "none"),
+        model=model,
+        loader=test_loader,
+        device=device,
+        z_stats=stats_mm,
+        feature_names=names_disp,
+        out_csv=args.metrics_csv,
+        out_csv_by_robot=getattr(args, "metrics_csv_by_robot", None),
+        use_mask_only=getattr(args, "use_mask_only", False),
+        postprocess_fn=post_fn,     # ★ これだけ追加
         )
 
 
