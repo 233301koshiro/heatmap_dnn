@@ -30,6 +30,9 @@ from urdf_to_graph_utilis import (
     apply_global_minmax_inplace_to_dataset, print_minmax_stats, compute_recon_metrics_origscale,compute_feature_mean_std_from_dataset, print_feature_mean_std
     #周期性upper/lower → sin/cos 変換
     ,embed_angles_sincos,
+
+    #表示用joint特徴名短縮
+    shorten_feature_names
 )
 
 from gnn_network_min import (
@@ -52,6 +55,7 @@ def build_data(urdf_path: str, normalize_by: str = "none") -> Data:
     X2, names2 = embed_angles_sincos(d.x, FEATURE_NAMES)
     d.x = X2
     d.feature_names = names2  # レポート系で使えるように保持
+    d.feature_names_disp = shorten_feature_names(names2)
     return d
 
 
@@ -107,6 +111,14 @@ def main():
             print(f"[skip] empty graph: {p}")
             continue
         dataset.append(d)
+
+    feat_names_long  = getattr(dataset[0], "feature_names", FEATURE_NAMES)
+    feat_names_short = shorten_feature_names(feat_names_long)
+
+    # ← ここで “短縮表示を使う/使わない” をトグル
+    USE_SHORT_NAMES = True
+
+    NAMES = feat_names_short if USE_SHORT_NAMES else feat_names_long
     print("[check] num_features:", dataset[0].num_node_features)
     print("[check] feature_names:", getattr(dataset[0], "feature_names", FEATURE_NAMES))
     assert any(n.endswith("_sin") for n in getattr(dataset[0], "feature_names", [])), \
@@ -120,11 +132,11 @@ def main():
     i for i, n in enumerate(feat_names)
     if not (n.endswith("_sin") or n.endswith("_cos"))
     ]
-
+    feat_names_short = shorten_feature_names(feat_names)
     #datasetの統計表示
     minimal_dataset_report(dataset)
     data_stats = compute_feature_mean_std_from_dataset(dataset, cols=None, population_std=True)
-    print_feature_mean_std(data_stats, feature_names=FEATURE_NAMES)
+    print_feature_mean_std(data_stats, feature_names=NAMES)
 
     # 統計計算 → 適用 → 非有限チェック
     #stats_z = compute_global_z_stats_from_dataset(dataset, z_cols=DEFAULT_Z_COLS)
@@ -157,7 +169,7 @@ def main():
     #print_minmax_stats(stats_mm, feature_names=FEATURE_NAMES)
 
     #sin/cos
-    print_minmax_stats(stats_mm, feature_names=feat_names)
+    print_minmax_stats(stats_mm, feature_names=NAMES)
     try:
         X_example = dataset[0].x.detach().cpu().numpy()
         # z 用の可視化ヘルパを流用するなら、min-max を使う前提で自前の表示に差し替え可
@@ -169,7 +181,16 @@ def main():
         #upper/lower → sin/cos埋込み前
         #dump_normalized_feature_table(X_example, stats_mm, max_rows=5, feature_names=FEATURE_NAMES)
         #埋め込み後
-        dump_normalized_feature_table(X_example, stats_mm, max_rows=5, feature_names=feat_names)
+        # 例：X_example=最初のグラフの x、stats_mm=Min-Max stats、NAMES=feature_names
+        dump_normalized_feature_table(
+            X_example,
+            stats_mm,
+            max_rows=5,
+            feature_names=NAMES,
+            cols_per_block=10,   # ← 横幅を抑える（お好みで）
+            show_orig=True      # ← 元スケールも別表で表示
+        )
+
 
     except Exception as e:
         print(f"[WARN] preview dump skipped: {e}")
@@ -337,7 +358,7 @@ def main():
         compute_recon_metrics_origscale(
             model=model, loader=test_loader, device=device,
             z_stats=stats_mm,   # ←最初に取った統計を再利用
-            feature_names=feat_names,
+            feature_names=feat_names_short,
             out_csv=base,
             out_csv_by_robot=per_robot_csv,
             use_mask_only=(args.mask_mode != "none"),

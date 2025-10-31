@@ -47,12 +47,35 @@ JTYPES  = ["revolute", "continuous", "prismatic", "fixed", "planar", "floating"]
 J2IDX   = {j: i for i, j in enumerate(JTYPES)}
 MOVABLE = {"revolute", "continuous", "prismatic"}
 
+JTYPE_ORDER = ["revolute", "continuous", "prismatic", "fixed", "floating", "planar"]
+JTYPE_TO_IDX = {name: i for i, name in enumerate(JTYPE_ORDER)}
+
+# === 追加: 一番上の定数群の近くに置く =========================
+SHORT_NAME_MAP = {
+    "jtype_is_revolute":  "j_revo",
+    "jtype_is_continuous":"j_cont",
+    "jtype_is_prismatic": "j_pris",
+    "jtype_is_fixed":     "j_fix",
+    "jtype_is_floating":  "j_float",
+    "jtype_is_planar":    "j_plan",
+    # sin/cos も短くしたければ
+    "lower_sin":"lo_sin", "lower_cos":"lo_cos",
+    "upper_sin":"up_sin", "upper_cos":"up_cos",
+}
+
+
+
 # 特徴名（19次元の内訳）/ Z正規化対象列
-FEATURE_NAMES = [
-    "deg","depth","mass","jtype_onehot_0","_1","_2","_3","_4","_5",
-    "axis_x","axis_y","axis_z","origin_x","origin_y","origin_z",
-    "movable","width","lower","upper"
-]
+# 埋め込み「前」の列名（19列）
+FEATURE_NAMES = (
+    ["deg", "depth", "mass"] +
+    [f"jtype_is_{n}" for n in JTYPE_ORDER] +
+    ["axis_x", "axis_y", "axis_z",
+     "origin_x", "origin_y", "origin_z",
+     "movable", "width",
+     "lower", "upper"]   # ← ココを lower/upper に戻す
+)
+
 #upperとlowerは角度なのでsin/cosに変換前
 #DEFAULT_Z_COLS = [0, 1, 2, 9, 10, 11, 12, 13, 14, 16, 17, 18]
 # 角度をsin/cosに変換する場合
@@ -259,31 +282,95 @@ def _denorm_batch(xn: torch.Tensor, stats: Dict[str, Any]) -> torch.Tensor:
         pass
     return x
 
-def dump_normalized_feature_table(Xn, stats, max_rows=5, feature_names=None):
+def dump_normalized_feature_table(
+    Xn,
+    stats,
+    max_rows: int = 5,
+    feature_names: list[str] | None = None,
+    cols_per_block: int = 8,
+    show_orig: bool = True,
+):
     """
-    stats が mean/std（z）でも min/width（min-max）でもOK。
-    正規化後の値と、逆変換した元スケールの値を数行だけ表示。
+    - z_cols を複数ブロックに分けて横幅を抑えた表で表示
+    - normalized と original を「別テーブル」で出すので折り返しで崩れにくい
+    - 数値は 0 を "0"、-0 を "0" に揃え、末尾の 0 と '.' を削って短縮
     """
+    import math
     if not isinstance(Xn, torch.Tensor):
         Xn_t = torch.tensor(Xn, dtype=torch.float32)
     else:
         Xn_t = Xn.detach().clone().float()
 
-    Xorig_t = _denorm_batch(Xn_t, stats)  # 両対応
+    # 逆正規化して original も用意
+    Xorig_t = _denorm_batch(Xn_t, stats)
     Xn_np    = Xn_t.cpu().numpy()
     Xorig_np = Xorig_t.cpu().numpy()
-    cols = stats["z_cols"]
 
-    print("---- preview (normalized & original) ----")
-    print("row | " + " | ".join(
-        (feature_names[c] if feature_names and 0 <= c < len(feature_names) else f"f{c}") for c in cols
-    ))
-    print("-" * 72)
-    r = min(len(Xn_np), max_rows)
-    for i in range(r):
-        nz = " | ".join(f"{Xn_np[i, c]:.3f}"    for c in cols)
-        orv= " | ".join(f"{Xorig_np[i, c]:.3g}" for c in cols)
-        print(f"{i:>3} | {nz}   || orig: {orv}")
+    cols = list(stats["z_cols"])
+    if feature_names is None:
+        feature_names = [f"f{i}" for i in range(Xn_np.shape[1])]
+
+    def _fmt_num(v: float) -> str:
+        # 3桁程度に丸めて末尾0と小数点を削る
+        try:
+            fv = float(v)
+        except Exception:
+            return str(v)
+        if not math.isfinite(fv):
+            return "NaN" if math.isnan(fv) else ("Inf" if fv > 0 else "-Inf")
+        s = f"{fv:.3f}"
+        s = s.rstrip("0").rstrip(".")
+        if s in ("-0", "-0.0", "-0."):
+            s = "0"
+        if s == "":
+            s = "0"
+        return s
+
+    def _print_block(title: str, mat, col_ids):
+        # ブロックの列名とデータ幅に合わせて整形して出力
+        headers = ["row"] + [feature_names[c] for c in col_ids]
+        rows = []
+        R = min(len(mat), max_rows)
+        for i in range(R):
+            rows.append([str(i)] + [_fmt_num(mat[i, c]) for c in col_ids])
+
+        # 幅計算
+        widths = [len(h) for h in headers]
+        for r in rows:
+            for j, cell in enumerate(r):
+                widths[j] = max(widths[j], len(cell))
+
+        def fmt_row(parts):
+            out = []
+            for j, cell in enumerate(parts):
+                if j == 0:  # row 番号は右寄せ
+                    out.append(cell.rjust(widths[j]))
+                else:       # 値・列名は右寄せ（桁を揃える）
+                    out.append(cell.rjust(widths[j]))
+            return " | ".join(out)
+
+        rule = "-" * (sum(widths) + 3 * (len(widths) - 1))
+        print(rule)
+        print(f"{title}")
+        print(rule)
+        print(fmt_row(headers))
+        print(rule)
+        for r in rows:
+            print(fmt_row(r))
+        print(rule)
+
+    # ---- 表示本体：ブロックに分割して表示 ----
+    print("---- preview (normalized) ----")
+    for i in range(0, len(cols), cols_per_block):
+        blk = cols[i:i+cols_per_block]
+        _print_block(f"[block {i//cols_per_block+1}] normalized", Xn_np, blk)
+
+    if show_orig:
+        print("---- preview (original scale) ----")
+        for i in range(0, len(cols), cols_per_block):
+            blk = cols[i:i+cols_per_block]
+            _print_block(f"[block {i//cols_per_block+1}] original", Xorig_np, blk)
+
 
 # =========================================================
 # 3) XML/URDFユーティリティ（数値パース / リミット整形 / ルート読込）
@@ -464,9 +551,10 @@ def graph_features(G: nx.DiGraph, cfg: ExtractConfig):
         mass = float(nd.get("mass", 0.0))
 
         # child側の joint 属性（要件どおり）
-        j_idx = float(nd.get("joint_type_idx", J2IDX["fixed"]))
-        j_one = np.zeros(len(JTYPES), np.float32)
-        j_one[int(j_idx)] = 1.0
+        j_name = str(nd.get("joint_type", "fixed"))
+        j_one, _ = jtype_to_onehot(j_name)  # ← JTYPE_ORDERに沿ったワンホットを返す
+        j_one = np.array(j_one, dtype=np.float32)
+
 
         ax = np.array(nd.get("joint_axis", (0.0, 0.0, 0.0)), np.float64)
         org = np.array(nd.get("joint_origin_xyz", (0.0, 0.0, 0.0)), np.float64)
@@ -737,6 +825,18 @@ def process_dir_flat(dir_path: str, out_root: str, normalize_by="mean_edge_len",
 # =========================================================
 # 10) デバッグユーティリティ（表示 / スキャン）
 # =========================================================
+def shorten_feature_names(names: list[str]) -> list[str]:
+    return [SHORT_NAME_MAP.get(n, n) for n in names]
+
+
+def jtype_to_onehot(name: str):
+    v = [0]*len(JTYPE_ORDER)
+    i = JTYPE_TO_IDX.get(name, None)
+    if i is not None:
+        v[i] = 1
+    return v, (i if i is not None else -1)  # onehot, index
+
+
 def print_step_header(step: int, tag: str = "train"):
     print(f"\n===== {tag.upper()} STEP {step} =====")
 
@@ -790,6 +890,9 @@ def minimal_graph_report(d: Data, max_nodes: int = 5, float_fmt=":.6g"):
 
     F = d.x.size(1)
     feat_names = getattr(d, "feature_names", None)
+    feat_names_disp = getattr(d, "feature_names_disp", None)
+    if feat_names_disp:
+        feat_names = feat_names_disp
     if not feat_names or len(feat_names) != F:
         feat_names = [f"f{i}" for i in range(F)]
 
