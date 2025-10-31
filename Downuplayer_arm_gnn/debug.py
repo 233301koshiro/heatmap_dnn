@@ -45,7 +45,7 @@ from gnn_network_min import (
 # ---------------------------------------------------------
 # Data: URDF → PyG
 # ---------------------------------------------------------
-def build_data(urdf_path: str, normalize_by: str = "none") -> Data:
+def build_data(urdf_path: str, normalize_by: str = "none", drop_feats: list[str] | None = None) -> Data:
     S, nodes, X, edge_index, E, scale, _ = urdf_to_feature_graph(
         urdf_path, ExtractConfig(normalize_by=normalize_by)
     )
@@ -53,9 +53,21 @@ def build_data(urdf_path: str, normalize_by: str = "none") -> Data:
     d.name = urdf_path
     # === ここで lower/upper -> sin/cos に差し替え ===
     X2, names2 = embed_angles_sincos(d.x, FEATURE_NAMES)
-    d.x = X2
-    d.feature_names = names2  # レポート系で使えるように保持
-    d.feature_names_disp = shorten_feature_names(names2)
+        # --- 学習で使わない列を落とす（CSV等の生成は別ルートなので影響なし） ---
+    drop_feats = drop_feats or []
+    # ユーザ指定が lower/upper の場合でも sin/cos 展開後の名前にマッピング
+    expand_map = {
+        "lower": {"lower_sin", "lower_cos"},
+        "upper": {"upper_sin", "upper_cos"},
+    }
+    drop_set = set()
+    for k in drop_feats:
+        drop_set |= expand_map.get(k, {k})
+    keep_idx = [i for i, n in enumerate(names2) if n not in drop_set]
+    d.x = X2[:, keep_idx]
+    kept_names = [names2[i] for i in keep_idx]
+    d.feature_names = kept_names  # レポート系で使えるように保持
+    d.feature_names_disp = shorten_feature_names(kept_names)
     return d
 
 
@@ -84,6 +96,12 @@ def parse_args():
                     help="このステップ間隔でバッチ内ログを出す（0ならバッチ内は無出力）")
 
     ap.add_argument("--log-every", type=int, default=20, help="何エポックごとにサマリを出すか")
+
+    # 除外特徴
+    ap.add_argument("--drop-feats", default="movable,width,lower,upper",
+                    help="学習から除外する特徴名をカンマ区切りで指定。"
+                         "lower/upper は sin/cos 展開後の2列ずつをまとめて除外します。"
+                         "（例）movable,width,lower,upper")
     return ap.parse_args()
 
 def main():
@@ -105,8 +123,9 @@ def main():
         raise RuntimeError(f"URDFが見つかりません: {args.merge_dir}")
 
     dataset: List[Data] = []
+    drop_list = [s.strip() for s in (args.drop_feats or "").split(",") if s.strip()]
     for p in paths:
-        d = build_data(p, normalize_by=args.normalize_by)
+        d = build_data(p, normalize_by=args.normalize_by, drop_feats=drop_list)
         if d.num_nodes == 0:
             print(f"[skip] empty graph: {p}")
             continue
@@ -121,17 +140,14 @@ def main():
     NAMES = feat_names_short if USE_SHORT_NAMES else feat_names_long
     print("[check] num_features:", dataset[0].num_node_features)
     print("[check] feature_names:", getattr(dataset[0], "feature_names", FEATURE_NAMES))
-    assert any(n.endswith("_sin") for n in getattr(dataset[0], "feature_names", [])), \
-    "sin/cos 列が入っていません（embed_angles_sincos 未適用）"
+    #assert any(n.endswith("_sin") for n in getattr(dataset[0], "feature_names", [])), \
+    #"sin/cos 列が入っていません（embed_angles_sincos 未適用）"
 
     if not dataset:
         raise RuntimeError("有効なグラフが0件。URDFや抽出設定を見直してください。")
-    # 埋め込み後の列名から z_cols を作成
+    # もう学習用行列 d.x は「使用する列だけ」になっているので、z_colsは全列でOK
     feat_names = getattr(dataset[0], "feature_names", None) or FEATURE_NAMES
-    Z_COLS = [
-    i for i, n in enumerate(feat_names)
-    if not (n.endswith("_sin") or n.endswith("_cos"))
-    ]
+    Z_COLS = list(range(len(feat_names)))
     feat_names_short = shorten_feature_names(feat_names)
     #datasetの統計表示
     minimal_dataset_report(dataset)
@@ -168,7 +184,7 @@ def main():
     # min-max 正規化統計の表示とサンプル可視
     #print_minmax_stats(stats_mm, feature_names=FEATURE_NAMES)
 
-    #sin/cos
+    #min-maxの統計表示
     print_minmax_stats(stats_mm, feature_names=NAMES)
     try:
         X_example = dataset[0].x.detach().cpu().numpy()
@@ -187,7 +203,7 @@ def main():
             stats_mm,
             max_rows=5,
             feature_names=NAMES,
-            cols_per_block=10,   # ← 横幅を抑える（お好みで）
+            cols_per_block=15,   # ← 横幅を抑える（お好みで）
             show_orig=True      # ← 元スケールも別表で表示
         )
 
@@ -363,6 +379,7 @@ def main():
             out_csv_by_robot=per_robot_csv,
             use_mask_only=(args.mask_mode != "none"),
         )
+
 
 
 

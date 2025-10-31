@@ -249,6 +249,8 @@ def apply_global_minmax_inplace_to_dataset(dataset: List[Data], stats: Dict[str,
         d.x[:, cols] = (d.x[:, cols] - vmin_d) / width_d
 
 def print_minmax_stats(stats: Dict[str, Any], feature_names=FEATURE_NAMES) -> None:
+    print("各特徴量の最小値/最大値（Min-Max正規化用）でーーーーす")
+    print("minもmaxも0ということはその要素は出現しなかったでーーーーす(onehotとか)")
     cols  = stats["z_cols"]
     vmin  = np.asarray(stats["min"])
     vmax  = np.asarray(stats["max"])
@@ -360,12 +362,15 @@ def dump_normalized_feature_table(
         print(rule)
 
     # ---- 表示本体：ブロックに分割して表示 ----
+    print("min-maxで正規化したあとの特徴量のプレビューでーーーーす")
+    print("さっき上で見せたグラフの特徴量の一部をブロックに分けて表示しまーーーーす")
     print("---- preview (normalized) ----")
     for i in range(0, len(cols), cols_per_block):
         blk = cols[i:i+cols_per_block]
         _print_block(f"[block {i//cols_per_block+1}] normalized", Xn_np, blk)
 
     if show_orig:
+        print("再変換が正しく行われているか確認するためのオリジナルスケールの表示でーーーーす")
         print("---- preview (original scale) ----")
         for i in range(0, len(cols), cols_per_block):
             blk = cols[i:i+cols_per_block]
@@ -1216,6 +1221,7 @@ def compute_recon_metrics_origscale(
     rmse_all = (sqr_sum_all / denom).sqrt().cpu().numpy()
 
     # 表示（従来どおり）
+    print("精度をわかりやすくするためにテストセット全体の各特徴量ごとの再構成誤差を表示しまーーーーーーーーす。")
     print("\n--- Reconstruction error on ORIGINAL scale (per feature) ---")
     print(f"{'idx':>3} | {'feature':<18} | {'MAE':>12} | {'RMSE':>12}")
     print("-" * 56)
@@ -1305,6 +1311,7 @@ def compute_feature_mean_std_from_dataset(
     }
 
 def print_feature_mean_std(stats: Dict[str, Any], feature_names=None) -> None:
+    print("各特徴量の 平均と/標準偏差でーーーーす")
     cols = stats["cols"]
     mean = stats["mean"]
     std  = stats["std"]
