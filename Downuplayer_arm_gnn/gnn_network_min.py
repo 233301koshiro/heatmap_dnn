@@ -184,7 +184,7 @@ class TreeDecoder(nn.Module):
 # =========================================================
 class MaskedTreeAutoencoder(nn.Module):
     def __init__(self, in_dim=19, hidden=128, bottleneck_dim=128,
-                 enc_rounds=2, dec_rounds=2, dropout=0.1,
+                 enc_rounds=5, dec_rounds=5, dropout=0.1,
                  mask_strategy: str = "none"):
         super().__init__()
         self.mask_strategy = mask_strategy
