@@ -1,0 +1,367 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.20000000000000001" length="0.59999999999999998" />
+   </geometry>
+   <material name="mat__0">
+    <color rgba="0 0 0.8 1" />
+   </material>
+  </visual>
+  <visual>
+   <origin xyz="2.200000000000e-01 0.000000000000e+00 -5.000000000000e-02" rpy="0.000000000000e+00 1.570750000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="6.000000000000e-01 2.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </visual>
+  <visual>
+   <origin xyz="-2.200000000000e-01 0.000000000000e+00 -5.000000000000e-02" rpy="0.000000000000e+00 1.570750000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="6.000000000000e-01 2.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </visual>
+  <visual>
+   <origin xyz="2.200000000000e-01 0.000000000000e+00 -3.500000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-01 4.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </visual>
+  <visual>
+   <origin xyz="-2.200000000000e-01 0.000000000000e+00 -3.500000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-01 4.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.17000000000000001" length="0.59999999999999998" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="2.200000000000e-01 0.000000000000e+00 -5.000000000000e-02" rpy="0.000000000000e+00 1.570750000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="6.000000000000e-01 2.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="-2.200000000000e-01 0.000000000000e+00 -5.000000000000e-02" rpy="0.000000000000e+00 1.570750000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="6.000000000000e-01 2.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="2.200000000000e-01 0.000000000000e+00 -3.500000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-01 4.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="-2.200000000000e-01 0.000000000000e+00 -3.500000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-01 4.000000000000e-01 1.000000000000e-01" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="50" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.600000000000e-01" />
+   <inertia ixx="6.2199999999999998" ixy="0" ixz="0" iyy="8.1560000000000006" iyz="0" izz="6.9359999999999999" />
+  </inertial>
+ </link>
+ <link name="gripper_pole">
+  <visual>
+   <origin xyz="1.000000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 1.570750000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.01" length="0.20000000000000001" />
+   </geometry>
+   <material name="mat__1">
+    <color rgba="0.7 0.7 0.7 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="1.000000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 1.570750000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.01" length="0.20000000000000001" />
+   </geometry>
+   <material name="mat__2">
+    <color rgba="0.7 0.7 0.7 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="gripper_extension" type="prismatic">
+  <parent link="base_link" />
+  <child link="gripper_pole" />
+  <origin xyz="0.000000000000e+00 1.900000000000e-01 2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 1.570749202905e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.38" upper="0" velocity="0.5" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="gripper_extension" />
+ <link name="left_gripper">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_left_gripper.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_left_gripper.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.10000000000000001" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="2" ixy="0" ixz="0" iyy="2" iyz="0" izz="2" />
+  </inertial>
+ </link>
+ <joint name="left_gripper_joint" type="revolute">
+  <parent link="gripper_pole" />
+  <child link="left_gripper" />
+  <origin xyz="2.000000000000e-01 2.000000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="0" upper="0.54800022387043157" velocity="0.50000017878208358" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="left_gripper_joint" />
+ <link name="right_gripper">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_right_gripper.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_right_gripper.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.10000000000000001" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="2" ixy="0" ixz="0" iyy="2" iyz="0" izz="2" />
+  </inertial>
+ </link>
+ <joint name="right_gripper_joint" type="revolute">
+  <parent link="gripper_pole" />
+  <child link="right_gripper" />
+  <origin xyz="2.000000000000e-01 -2.000000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e+00" />
+  <limit lower="0" upper="0.54800022387043157" velocity="0.50000017878208358" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="right_gripper_joint" />
+ <link name="head">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.16" />
+   </geometry>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 1.214000000000e-01 1.214000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="8.000000000000e-02 8.000000000000e-02 8.000000000000e-02" />
+   </geometry>
+   <material name="mat__3">
+    <color rgba="0 0 0.8 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <sphere radius="0.16" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 1.214000000000e-01 1.214000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="8.000000000000e-02 8.000000000000e-02 8.000000000000e-02" />
+   </geometry>
+   <material name="mat__4">
+    <color rgba="0 0 0.8 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="11" />
+   <origin xyz="0.000000000000e+00 1.103640000000e-02 1.103640000000e-02" />
+   <inertia ixx="2.0268000000000002" ixy="0" ixz="0" iyy="2.0133999999999999" iyz="-0.0133981" izz="2.0133999999999999" />
+  </inertial>
+ </link>
+ <joint name="head_swivel" type="continuous">
+  <parent link="base_link" />
+  <child link="head" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 3.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="0.50000017878208358" effort="1000" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="head_swivel" />
+ <link name="right_front_wheel">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__5">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__6">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.001" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0000000000000001e-09" ixy="0" ixz="0" iyy="1.0000000000000001e-09" iyz="0" izz="1.0000000000000001e-09" />
+  </inertial>
+ </link>
+ <joint name="right_front_wheel_joint" type="continuous">
+  <parent link="base_link" />
+  <child link="right_front_wheel" />
+  <origin xyz="2.200000000000e-01 1.333330000000e-01 -4.350000000000e-01" rpy="0.000000000000e+00 1.570749202905e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="right_front_wheel_joint" />
+ <link name="right_back_wheel">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__7">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__8">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.001" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0000000000000001e-09" ixy="0" ixz="0" iyy="1.0000000000000001e-09" iyz="0" izz="1.0000000000000001e-09" />
+  </inertial>
+ </link>
+ <joint name="right_back_wheel_joint" type="continuous">
+  <parent link="base_link" />
+  <child link="right_back_wheel" />
+  <origin xyz="2.200000000000e-01 -1.333330000000e-01 -4.350000000000e-01" rpy="0.000000000000e+00 1.570749202905e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="right_back_wheel_joint" />
+ <link name="left_front_wheel">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__9">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__10">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.001" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0000000000000001e-09" ixy="0" ixz="0" iyy="1.0000000000000001e-09" iyz="0" izz="1.0000000000000001e-09" />
+  </inertial>
+ </link>
+ <joint name="left_front_wheel_joint" type="continuous">
+  <parent link="base_link" />
+  <child link="left_front_wheel" />
+  <origin xyz="-2.200000000000e-01 1.333330000000e-01 -4.350000000000e-01" rpy="0.000000000000e+00 1.570749202905e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="left_front_wheel_joint" />
+ <link name="left_back_wheel">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__11">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.035000000000000003" length="0.10000000000000001" />
+   </geometry>
+   <material name="mat__12">
+    <color rgba="0.5 0.5 0.5 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.001" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0000000000000001e-09" ixy="0" ixz="0" iyy="1.0000000000000001e-09" iyz="0" izz="1.0000000000000001e-09" />
+  </inertial>
+ </link>
+ <joint name="left_back_wheel_joint" type="continuous">
+  <parent link="base_link" />
+  <child link="left_back_wheel" />
+  <origin xyz="-2.200000000000e-01 -1.333330000000e-01 -4.350000000000e-01" rpy="0.000000000000e+00 1.570749202905e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="left_back_wheel_joint" />
+</robot>
+

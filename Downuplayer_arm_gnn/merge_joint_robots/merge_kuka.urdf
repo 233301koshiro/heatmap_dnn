@@ -1,0 +1,229 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="calib_kuka_arm_base_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_calib_kuka_arm_base_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_calib_kuka_arm_base_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="9.9999999999999995e-07" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 5.500000000000e-02" />
+   <inertia ixx="0.0038166699999999999" ixy="0" ixz="0" iyy="0.0035999999999999999" iyz="0" izz="0.0038166699999999999" />
+  </inertial>
+ </link>
+ <link name="kuka_arm_1_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_1_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_1_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 4.000000000000e-02 1.300000000000e-01" />
+   <inertia ixx="0.0136667" ixy="0" ixz="0" iyy="0.011866700000000001" iyz="0" izz="0.0030000000000000001" />
+  </inertial>
+ </link>
+ <joint name="kuka_arm_0_joint" type="revolute">
+  <parent link="calib_kuka_arm_base_link" />
+  <child link="kuka_arm_1_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 1.100000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-2.9670597283903604" upper="2.9670597283903604" velocity="1.9198621771937625" effort="204" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="kuka_arm_0_joint" />
+ <link name="kuka_arm_2_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_2_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_2_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 -4.000000000000e-02 7.000000000000e-02" />
+   <inertia ixx="0.0136667" ixy="0" ixz="0" iyy="0.011866700000000001" iyz="0" izz="0.0030000000000000001" />
+  </inertial>
+ </link>
+ <joint name="kuka_arm_1_joint" type="revolute">
+  <parent link="kuka_arm_1_link" />
+  <child link="kuka_arm_2_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 -1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.5707963267948966" upper="1.5707963267948966" velocity="1.9198621771937625" effort="306" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="kuka_arm_1_joint" />
+ <link name="kuka_arm_3_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_3_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_3_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 -4.000000000000e-02 1.300000000000e-01" />
+   <inertia ixx="0.0136667" ixy="0" ixz="0" iyy="0.011866700000000001" iyz="0" izz="0.0030000000000000001" />
+  </inertial>
+ </link>
+ <joint name="kuka_arm_2_joint" type="revolute">
+  <parent link="kuka_arm_2_link" />
+  <child link="kuka_arm_3_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-2.9670597283903604" upper="2.9670597283903604" velocity="2.2689280275926285" effort="204" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="kuka_arm_2_joint" />
+ <link name="kuka_arm_4_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_4_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_4_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 4.000000000000e-02 7.000000000000e-02" />
+   <inertia ixx="0.0136667" ixy="0" ixz="0" iyy="0.011866700000000001" iyz="0" izz="0.0030000000000000001" />
+  </inertial>
+ </link>
+ <joint name="kuka_arm_3_joint" type="revolute">
+  <parent link="kuka_arm_3_link" />
+  <child link="kuka_arm_4_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0943951023931953" upper="2.0943951023931953" velocity="2.2689280275926285" effort="306" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="kuka_arm_3_joint" />
+ <link name="kuka_arm_5_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_5_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_5_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 2.000000000000e-02 1.240000000000e-01" />
+   <inertia ixx="0.012650700000000001" ixy="0" ixz="0" iyy="0.0108507" iyz="0" izz="0.0030000000000000001" />
+  </inertial>
+ </link>
+ <joint name="kuka_arm_4_joint" type="revolute">
+  <parent link="kuka_arm_4_link" />
+  <child link="kuka_arm_5_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 2.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-2.9670597283903604" upper="2.9670597283903604" velocity="2.2689280275926285" effort="204" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="kuka_arm_4_joint" />
+ <link name="kuka_arm_6_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_6_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_6_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="0.0052083299999999997" ixy="0" ixz="0" iyy="0.0052083299999999997" iyz="0" izz="0.0052083299999999997" />
+  </inertial>
+ </link>
+ <joint name="kuka_arm_5_joint" type="revolute">
+  <parent link="kuka_arm_5_link" />
+  <child link="kuka_arm_6_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 1.900000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 -1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0943951023931953" upper="2.0943951023931953" velocity="3.1415926535897931" effort="306" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="kuka_arm_5_joint" />
+ <link name="kuka_arm_7_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_7_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_kuka_arm_7_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="2" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="0.00083333300000000001" ixy="0" ixz="0" iyy="0.00083333300000000001" iyz="0" izz="0.00083333300000000001" />
+  </inertial>
+ </link>
+ <joint name="kuka_arm_6_joint" type="revolute">
+  <parent link="kuka_arm_6_link" />
+  <child link="kuka_arm_7_link" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 7.800000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-2.9670597283903604" upper="2.9670597283903604" velocity="3.1415926535897931" effort="204" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="kuka_arm_6_joint" />
+</robot>
+

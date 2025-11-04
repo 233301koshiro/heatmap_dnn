@@ -1,0 +1,780 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base_chassis_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.300000000000e-01 1.000000000000e-01 7.000000000000e-02" />
+   </geometry>
+   <material name="mat__0">
+    <color rgba="0.3 0.3 0.3 1" />
+   </material>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 1.000000000000e-01 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.700000000000e-01 1.000000000000e-01 5.000000000000e-02" />
+   </geometry>
+   <material name="mat__1">
+    <color rgba="0.3 0.3 0.3 1" />
+   </material>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 -1.000000000000e-01 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.700000000000e-01 1.000000000000e-01 5.000000000000e-02" />
+   </geometry>
+   <material name="mat__2">
+    <color rgba="0.3 0.3 0.3 1" />
+   </material>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 -6.513318568088e-02 -3.050452300198e-03" rpy="-8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__3">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 -1.348668143191e-01 3.050452300198e-03" rpy="-8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__4">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 1.348668143191e-01 3.050452300198e-03" rpy="8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__5">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <origin xyz="0.000000000000e+00 6.513318568088e-02 -3.050452300198e-03" rpy="8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__6">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.300000000000e-01 1.000000000000e-01 7.000000000000e-02" />
+   </geometry>
+   <material name="mat__7">
+    <color rgba="0.3 0.3 0.3 1" />
+   </material>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 1.000000000000e-01 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.700000000000e-01 1.000000000000e-01 5.000000000000e-02" />
+   </geometry>
+   <material name="mat__8">
+    <color rgba="0.3 0.3 0.3 1" />
+   </material>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 -1.000000000000e-01 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.700000000000e-01 1.000000000000e-01 5.000000000000e-02" />
+   </geometry>
+   <material name="mat__9">
+    <color rgba="0.3 0.3 0.3 1" />
+   </material>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 -6.513318568088e-02 -3.050452300198e-03" rpy="-8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__10">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 -1.348668143191e-01 3.050452300198e-03" rpy="-8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__11">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 1.348668143191e-01 3.050452300198e-03" rpy="8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__12">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.513318568088e-02 -3.050452300198e-03" rpy="8.726650000003e-02 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="3.400000000000e-01 1.000000000000e-02 4.000000000000e-02" />
+   </geometry>
+   <material name="mat__13">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="3.2000000000000002" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="3.0019999999999998" ixy="0" ixz="0" iyy="3" iyz="0" izz="3.0019999999999998" />
+  </inertial>
+ </link>
+ <link name="motor_front_rightR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__14">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_front_rightR_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.043400000000000001" length="0.025999999999999999" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__15">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_front_rightR_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_front_rightR_link" />
+  <origin xyz="2.100000000000e-01 -1.249050000000e-01 2.178890000000e-03" rpy="1.483482740305e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_front_rightR_joint" />
+ <link name="lower_leg_front_rightR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__16">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__17">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_front_rightR_link" type="revolute">
+  <parent link="motor_front_rightR_link" />
+  <child link="lower_leg_front_rightR_link" />
+  <origin xyz="0.000000000000e+00 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_front_rightR_link" />
+ <link name="motor_front_rightL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__18">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_front_rightL_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.043400000000000001" length="0.025999999999999999" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__19">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_front_rightL_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_front_rightL_link" />
+  <origin xyz="2.100000000000e-01 -6.015220000000e-02 -3.486230000000e-03" rpy="1.658017305310e+00 -2.983128971445e-07 3.141592328053e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_front_rightL_joint" />
+ <link name="lower_leg_front_rightL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.980000000000e-01" />
+   </geometry>
+   <material name="mat__20">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.980000000000e-01" />
+   </geometry>
+   <material name="mat__21">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_front_rightL_link" type="revolute">
+  <parent link="motor_front_rightL_link" />
+  <child link="lower_leg_front_rightL_link" />
+  <origin xyz="-6.144469643611e-18 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 1.588186776102e-22 -1.058791184068e-22" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_front_rightL_link" />
+ <link name="motor_back_rightR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__22">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_back_rightR_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.043400000000000001" length="0.025999999999999999" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__23">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_back_rightR_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_back_rightR_link" />
+  <origin xyz="-2.100000000000e-01 -1.249050000000e-01 2.178890000000e-03" rpy="1.483482740305e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_back_rightR_joint" />
+ <link name="lower_leg_back_rightR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.032000000000e-01" />
+   </geometry>
+   <material name="mat__24">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.032000000000e-01" />
+   </geometry>
+   <material name="mat__25">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_back_rightR_link" type="revolute">
+  <parent link="motor_back_rightR_link" />
+  <child link="lower_leg_back_rightR_link" />
+  <origin xyz="0.000000000000e+00 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_back_rightR_link" />
+ <link name="motor_back_rightL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__26">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_back_rightL_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.043400000000000001" length="0.025999999999999999" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__27">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_back_rightL_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_back_rightL_link" />
+  <origin xyz="-2.100000000000e-01 -6.015220000000e-02 -3.486230000000e-03" rpy="1.658017305310e+00 -2.983128971445e-07 3.141592328053e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_back_rightL_joint" />
+ <link name="lower_leg_back_rightL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__28">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__29">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_back_rightL_link" type="revolute">
+  <parent link="motor_back_rightL_link" />
+  <child link="lower_leg_back_rightL_link" />
+  <origin xyz="-6.144469643611e-18 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 1.588186776102e-22 -1.058791184068e-22" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_back_rightL_link" />
+ <link name="motor_front_leftL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__30">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_front_leftL_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.043400000000000001" length="0.025999999999999999" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__31">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_front_leftL_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_front_leftL_link" />
+  <origin xyz="2.100000000000e-01 1.249050000000e-01 2.178890000000e-03" rpy="1.483483326826e+00 -3.552764833046e-07 3.141592328054e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_front_leftL_joint" />
+ <link name="lower_leg_front_leftL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.980000000000e-01" />
+   </geometry>
+   <material name="mat__32">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.980000000000e-01" />
+   </geometry>
+   <material name="mat__33">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_front_leftL_link" type="revolute">
+  <parent link="motor_front_leftL_link" />
+  <child link="lower_leg_front_leftL_link" />
+  <origin xyz="-1.351097621954e-17 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 -1.058791184068e-22 1.588186776102e-22" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_front_leftL_link" />
+ <link name="motor_front_leftR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__34">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_front_leftR_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__35">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_front_leftR_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_front_leftR_link" />
+  <origin xyz="2.100000000000e-01 6.015220000000e-02 -3.486230000000e-03" rpy="1.658015665505e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_front_leftR_joint" />
+ <link name="lower_leg_front_leftR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__36">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__37">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_front_leftR_link" type="revolute">
+  <parent link="motor_front_leftR_link" />
+  <child link="lower_leg_front_leftR_link" />
+  <origin xyz="0.000000000000e+00 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_front_leftR_link" />
+ <link name="motor_back_leftL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__38">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_back_leftL_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.043400000000000001" length="0.025999999999999999" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__39">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_back_leftL_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_back_leftL_link" />
+  <origin xyz="-2.100000000000e-01 1.249050000000e-01 2.178890000000e-03" rpy="1.483483326826e+00 -3.552764833046e-07 3.141592328054e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_back_leftL_joint" />
+ <link name="lower_leg_back_leftL_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__40">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.000000000000e-01" />
+   </geometry>
+   <material name="mat__41">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_back_leftL_link" type="revolute">
+  <parent link="motor_back_leftL_link" />
+  <child link="lower_leg_back_leftL_link" />
+  <origin xyz="-1.351097621954e-17 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 -1.058791184068e-22 1.588186776102e-22" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_back_leftL_link" />
+ <link name="motor_back_leftR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__42">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_motor_back_leftR_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <cylinder radius="0.043400000000000001" length="0.025999999999999999" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="0.000000000000e+00 6.000000000000e-02 -1.500000000000e-02" rpy="-1.570750000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 1.100000000000e-01" />
+   </geometry>
+   <material name="mat__43">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.29999999999999999" />
+   <origin xyz="0.000000000000e+00 1.000000000000e-02 -2.500000000000e-03" />
+   <inertia ixx="2.0001600000000002" ixy="0" ixz="0" iyy="2.0000100000000001" iyz="3.7499999999999997e-05" izz="2.0001500000000001" />
+  </inertial>
+ </link>
+ <joint name="motor_back_leftR_joint" type="continuous">
+  <parent link="base_chassis_link" />
+  <child link="motor_back_leftR_link" />
+  <origin xyz="-2.100000000000e-01 6.015220000000e-02 -3.486230000000e-03" rpy="1.658015665505e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="motor_back_leftR_joint" />
+ <link name="lower_leg_back_leftR_link">
+  <visual>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.032000000000e-01" />
+   </geometry>
+   <material name="mat__44">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </visual>
+  <collision>
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 2.032000000000e-01" />
+   </geometry>
+   <material name="mat__45">
+    <color rgba="0.65 0.65 0.75 1" />
+   </material>
+  </collision>
+  <inertial>
+   <mass value="0.050000000000000003" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1" />
+  </inertial>
+ </link>
+ <joint name="knee_back_leftR_link" type="revolute">
+  <parent link="motor_back_leftR_link" />
+  <child link="lower_leg_back_leftR_link" />
+  <origin xyz="0.000000000000e+00 1.150000000000e-01 -2.499750000000e-02" rpy="-1.570749202905e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="0" velocity="100.00003575641671" effort="100" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="knee_back_leftR_link" />
+</robot>
+

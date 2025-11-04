@@ -1240,6 +1240,32 @@ def compute_recon_metrics_origscale(
         print(f"{i:>3} | {name:<18} | {mae_all[i]:>12.6g} | {rmse_all[i]:>12.6g}")
     print("-" * 56)
 
+        # === 追加: Min–Max 幅で割った誤差率（%）を計算し、MAE率の降順で表示 ===
+    if isinstance(z_stats, dict) and ("width" in z_stats):
+        F = len(feat_names)
+        # 全列ぶんの幅ベクトルを作る（デフォルト1.0、z_colsにある列はstatsから上書き）
+        width_all = np.ones(F, dtype=np.float64)
+        zcols = z_stats.get("z_cols", list(range(F)))
+        w_in  = np.asarray(z_stats["width"], dtype=np.float64)
+        for j, c in enumerate(zcols):
+            if 0 <= c < F:
+                # 0割回避（compute_global_minmax_stats_from_datasetで1に置換済みだが念のため）
+                width_all[c] = max(float(w_in[j]), 1e-12)
+
+        mae_rate  = mae_all / width_all
+        rmse_rate = rmse_all / width_all
+        order = np.argsort(mae_rate)[::-1]  # 誤差率(大)→(小)
+
+        print("\n--- Error rate by Min–Max range (sorted by MAE rate, desc) ---")
+        print(f"{'rank':>4} | {'idx':>3} | {'feature':<18} | {'MAE':>9} | {'width':>9} | {'(MAE/width)%':>7} | {'(RMSE/width)%':>7}")
+        print("-" * 78)
+        for r, i in enumerate(order, 1):
+            name_i = feat_names[i] if i < len(feat_names) else f"f{i}"
+            print(f"{r:>4} | {i:>3} | {name_i:<18} | "
+                  f"{mae_all[i]:>9.4g} | {width_all[i]:>9.4g} | "
+                  f"{100*mae_rate[i]:>6.2f} | {100*rmse_rate[i]:>6.2f}")
+        print("-" * 78)
+
     # ===== CSV出力 =====
     if out_csv:
         Path(out_csv).parent.mkdir(parents=True, exist_ok=True)

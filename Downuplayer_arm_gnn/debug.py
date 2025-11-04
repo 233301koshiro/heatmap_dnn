@@ -101,7 +101,7 @@ def parse_args():
     ap.add_argument("--log-every", type=int, default=20, help="何エポックごとにサマリを出すか")
 
     # 除外特徴
-    ap.add_argument("--drop-feats", default="movable,width,lower,upper",
+    ap.add_argument("--drop-feats", default="movable,width,lower,upper,jtype_is_planar,jtype_is_floating",
                     help="学習から除外する特徴名をカンマ区切りで指定。"
                          "lower/upper は sin/cos 展開後の2列ずつをまとめて除外します。"
                          "（例）movable,width,lower,upper")
