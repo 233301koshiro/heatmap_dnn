@@ -385,16 +385,21 @@ def main():
             unit_axis=True      # 表示専用で axis を L2 正規化
         )
         compute_recon_metrics_origscale(
-        model=model,
-        loader=test_loader,
-        device=device,
-        z_stats=stats_mm,
-        feature_names=names_disp,
-        out_csv=args.metrics_csv,
-        out_csv_by_robot=getattr(args, "metrics_csv_by_robot", None),
-        use_mask_only=getattr(args, "use_mask_only", False),
-        postprocess_fn=post_fn,     # ★ これだけ追加
+            model=model,
+            loader=test_loader,
+            device=device,
+            z_stats=stats_mm,                 # min/max/width が入っている dict
+            feature_names=names_disp,
+            out_csv=args.metrics_csv,
+            out_csv_by_robot=getattr(args, "metrics_csv_by_robot", None),
+            use_mask_only=(args.mask_mode != "none"),
+            postprocess_fn=post_fn,           # 逆正規化をここでやっているならそれを渡す
+            mask_mode=args.mask_mode,         # "none" | "one" | "k"
+            mask_k=getattr(args, "mask_k", 1),
+            mask_seed=getattr(args, "seed", None),
+            reduction=getattr(args, "mask_reduction", "mean"),
         )
+
 
 
 
