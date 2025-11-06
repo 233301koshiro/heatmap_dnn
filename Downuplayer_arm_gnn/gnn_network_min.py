@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.nn import GINConv, AttentionalAggregation
 from torch_scatter import scatter_mean
+import numpy as np
 from urdf_to_graph_utilis import debug_edge_index, print_step_header, print_step_footer
 def _vprint(enabled: bool, *args, **kwargs):
     if enabled:
@@ -251,6 +252,7 @@ class TrainCfg:
     mask_strategy: str = "none"
     verbose: bool = True            # 詳細ログを出すか
     log_interval: int = 0           # バッチ内ログを出すステップ間隔(0で出さない)
+    mask_k: int = 1                # 各グラフからマスクするノード数
 
 def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict) -> torch.Tensor:
     """
@@ -278,10 +280,21 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
         data = data.to(device)
         model._opt.zero_grad(set_to_none=True)
 
-        out  = model(data)
-        pred = out[0] if isinstance(out, (tuple, list)) else out
-        loss = ((pred - data.x) ** 2).mean()
+        #out  = model(data)
+        #pred = out[0] if isinstance(out, (tuple, list)) else out
+        #loss = ((pred - data.x) ** 2).mean()
+        # --- マスク index の作成（'one' なら k=1, 'k' なら cfg.mask_k、それ以外は None） ---
+        mask_idx = None
+        if cfg.recon_only_masked and (cfg.mask_strategy in ("one", "k")):
+            k = 1 if cfg.mask_strategy == "one" else max(1, int(cfg.mask_k))
+            if hasattr(data, "ptr"):  # 各グラフから k ノードずつ無作為抽出
+                mask_idx = _pick_mask_indices_from_batch(data, k=k)  # CPU LongTensor
+                mask_idx = mask_idx.to(device)
 
+        # --- forward（マスクをモデルへ渡し、再現対象 index を out に埋めてもらう） ---
+        pred, out = model(data, mask_idx=mask_idx, recon_only_masked=cfg.recon_only_masked)
+        # --- loss は masked のみで計算（recon_target_idx があればそこだけ） ---
+        loss = loss_reconstruction(pred, data.x, out)
         loss.backward()
         model._opt.step()
 
@@ -301,9 +314,18 @@ def eval_loss(model, loader, device, recon_only_masked: bool = True, mask_strate
     total = 0.0
     for step, data in enumerate(loader, start=1):
         data = data.to(device)
-        out  = model(data)
-        pred = out[0] if isinstance(out, (tuple, list)) else out
-        loss = ((pred - data.x) ** 2).mean()
+        #out  = model(data)
+        #pred = out[0] if isinstance(out, (tuple, list)) else out
+        #loss = ((pred - data.x) ** 2).mean()
+        # --- 評価時も同様にマスク index を作る（seed固定したいならここでnp RNG固定してもOK） ---
+        mask_idx = None
+        if recon_only_masked and (mask_strategy in ("one", "k")):
+            k = 1 if mask_strategy == "one" else  max(1, int(getattr(getattr(model, "_cfg", None), "mask_k", 1)))
+            if hasattr(data, "ptr"):
+                mask_idx = _pick_mask_indices_from_batch(data, k=k).to(device)
+
+        pred, out = model(data, mask_idx=mask_idx, recon_only_masked=recon_only_masked)
+        loss = loss_reconstruction(pred, data.x, out)
         total += float(loss.item())
 
         # 評価時は静かに。必要なら verbose で間引きログ
@@ -329,3 +351,19 @@ def _as_tensor(y, ref: torch.Tensor) -> torch.Tensor:
     if not torch.is_tensor(y):
         y = torch.as_tensor(y, dtype=ref.dtype, device=ref.device)
     return y
+
+def _pick_mask_indices_from_batch(batch, k, rng=None):
+    """
+    torch_geometricのBatchを想定。各グラフ境界 ptr から k 個ずつノードを無作為抽出。
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+    ptr = batch.ptr.cpu().numpy()  # shape: [G+1]
+    idxs = []
+    for i in range(len(ptr) - 1):
+        a, b = int(ptr[i]), int(ptr[i + 1])
+        n = b - a
+        kk = min(k, n)
+        sel = rng.choice(n, size=kk, replace=False)
+        idxs.append(torch.as_tensor(sel + a, dtype=torch.long))
+    return torch.cat(idxs, dim=0)

@@ -82,7 +82,15 @@ def parse_args():
                     help="origin距離の平均で正規化するか（特徴抽出時）")
     ap.add_argument("--epochs", type=int, default=1, help="エポック数（デフォルト1）")
     ap.add_argument("--batch-size", type=int, default=8, help="バッチサイズ")
-    ap.add_argument("--mask-mode", choices=["none", "one"], default="none", help="評価時のマスク戦略")
+    ap.add_argument("--mask-mode", type=str, default="one",
+        choices=["none", "one", "k"],
+        help="Masking strategy for metrics. 'one' masks 1 node/graph; 'k' masks k nodes/graph; 'none' disables masking.")
+
+    ap.add_argument("--mask-k", type=int, default=1,
+        help="Number of masked nodes per graph when --mask-mode k")
+
+    ap.add_argument("--mask-seed", type=int, default=0,
+        help="Random seed for node masking in metrics (used by 'one'/'k').")
     ap.add_argument("--seed", type=int, default=None, help="乱数シード（指定時に固定）")
     # 保存/ログ/早停
     ap.add_argument("--save-dir", default="", help="保存先ディレクトリ（空なら保存しない）")
@@ -114,7 +122,8 @@ def main():
     if args.seed is not None:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
-
+    if args.mask_mode == "k" and args.mask_k < 1:
+        raise ValueError("--mask-k must be >= 1 when --mask-mode=k")
     # -----------------------------------------------------
     # データ読み込み
     # -----------------------------------------------------
@@ -251,11 +260,12 @@ def main():
     in_node = train_set[0].num_node_features
     # --- Model/CFG 構築時に反映 ---
     cfg = TrainCfg(
-        lr=1e-3, weight_decay=1e-4, epochs=args.epochs,
-        recon_only_masked=True, mask_strategy=args.mask_mode,
-        verbose=(not args.quiet),          # ← ここを追加
-        log_interval=max(0, args.log_interval),  # ← ここを追加
-    )
+         lr=1e-3, weight_decay=1e-4, epochs=args.epochs,
+        recon_only_masked=True, mask_strategy=args.mask_mode, mask_k=args.mask_k,
+         verbose=(not args.quiet),          # ← ここを追加
+         log_interval=max(0, args.log_interval),  # ← ここを追加
+     )
+
 
 
     model = MaskedTreeAutoencoder(
@@ -303,6 +313,7 @@ def main():
         t0 = time.time()
         train_recon = train_one_epoch(model, train_loader, device, cfg, log_every_steps=args.log_interval)
         val_recon   = eval_loss(model, val_loader, device, recon_only_masked=True, log_every_steps=args.log_interval, verbose=(not args.quiet))
+        
         sec = time.time() - t0
         # エポック出力は log-every ごと（1エポ目と最終エポックは必ず出す）
         if (epoch % args.log_every == 0) or (epoch == 1) or (epoch == args.epochs):
