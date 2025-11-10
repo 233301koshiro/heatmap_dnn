@@ -36,6 +36,10 @@ from urdf_to_graph_utilis import (
 
     #metrics用前処理
     make_postprocess_fn,
+
+    _denorm_batch,
+    make_postprocess_fn,
+    create_composite_post_fn
 )
 
 from gnn_network_min import (
@@ -159,7 +163,9 @@ def main():
         raise RuntimeError("有効なグラフが0件。URDFや抽出設定を見直してください。")
     # もう学習用行列 d.x は「使用する列だけ」になっているので、z_colsは全列でOK
     feat_names = getattr(dataset[0], "feature_names", None) or FEATURE_NAMES
-    Z_COLS = list(range(len(feat_names)))
+    #axis 関連を除外
+    EXCLUDE_COLS = {9, 10, 11} # axis_x, axis_y, axis_z
+    Z_COLS = [i for i in range(len(feat_names)) if i not in EXCLUDE_COLS]
     feat_names_short = shorten_feature_names(feat_names)
     #datasetの統計表示
     minimal_dataset_report(dataset)
@@ -272,8 +278,8 @@ def main():
         in_dim=in_node,
         hidden=128,
         bottleneck_dim=128,
-        enc_rounds=2,
-        dec_rounds=2,
+        enc_rounds=8,
+        dec_rounds=8,
         dropout=0.1,
         mask_strategy=cfg.mask_strategy
     ).to(device)
@@ -390,10 +396,11 @@ def main():
         names_long = getattr(test_loader.dataset[0], "feature_names",
                      [f"f{i}" for i in range(test_loader.dataset[0].num_node_features)])
         names_disp = getattr(test_loader.dataset[0], "feature_names_disp", names_long)
-        post_fn = make_postprocess_fn(
-            names=names_long,
-            snap_onehot=True,   # 表示専用で one-hot を最大値にスナップ
-            unit_axis=True      # 表示専用で axis を L2 正規化
+        post_fn = create_composite_post_fn(
+            stats=stats_mm,       # Min-Max 統計 (L190 で定義済み)
+            names=names_long,     # 特徴名リスト
+            snap_onehot=True,
+            unit_axis=True
         )
         compute_recon_metrics_origscale(
             model=model,

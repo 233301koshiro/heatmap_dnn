@@ -239,6 +239,7 @@ def compute_global_minmax_stats_from_dataset(
         "method": "minmax",
     }
 
+#この関数はデータセットをインプレースでMin-Max正規化する．インプレースとは，元のデータを直接書き換えることを意味します．
 def apply_global_minmax_inplace_to_dataset(dataset: List[Data], stats: Dict[str, Any]) -> None:
     cols  = stats["z_cols"]
     vmin  = torch.tensor(stats["min"],   dtype=torch.float32)
@@ -575,7 +576,11 @@ def graph_features(G: nx.DiGraph, cfg: ExtractConfig):
         feat = [deg, dep, mass] + list(j_one.tolist()) + list(ax.tolist()) + list(org.tolist()) + \
                [movable, width, lower, upper]
         X.append(feat)
-
+    ax = np.array(nd.get("joint_axis", (0.0, 0.0, 0.0)), np.float64)
+    # --- 追加 ---
+    ax_norm = np.linalg.norm(ax)
+    if ax_norm > 1e-9:
+        ax = ax / ax_norm
     # まずfloat64で保持→非有限は0.0に→float32へキャスト（溢れ/NaN対策）
     X = np.array(X, dtype=np.float64)
     X[~np.isfinite(X)] = 0.0
@@ -1135,8 +1140,11 @@ def compute_recon_metrics_origscale(
     # ===== 収集バッファ =====
     #   err_rows: すべての（マスク適用済み）ノード行の誤差を後でまとめて計算
     err_rows: List[torch.Tensor] = []
+    targ_rows: List[torch.Tensor] = [] # <--- 追加
     #   per-robot 集計用
     per_robot_err: Dict[str, List[torch.Tensor]] = {}
+    per_robot_targ: Dict[str, List[torch.Tensor]] = {} # ロボット別も変更する場合はここも
+    individual_results: List[dict] = [] # <--- この行を追加
 
     # ===== 走査 =====
     with torch.no_grad():
@@ -1196,34 +1204,89 @@ def compute_recon_metrics_origscale(
             # ===== 誤差（元スケール） =====
             err = pred - targ                  # [N, D]
             if sel is not None:
+                targ_sel = targ.index_select(0, sel) # <--- 追加
                 err = err.index_select(0, sel) # マスク適用
+            else: # <--- 追加 (sel=None の場合)
+                targ_sel = targ # <--- 追加
 
             # まとめて後で集計
             err_rows.append(err.detach().cpu())
+            targ_rows.append(targ_sel.detach().cpu()) 
 
             # ロボット（ファイル）単位の集計（任意）
-            if out_csv_by_robot is not None:
-                # batch に 'file' or 'path' のようなフィールドがある想定。
-                # なければ "robot_{i}" のようにダミー名を付ける。
-                robot_name = None
-                if hasattr(batch, "file"):  # 文字列 or list[str] 想定
-                    robot_name = batch.file if isinstance(batch.file, str) else None
-                if robot_name is None and hasattr(batch, "path"):
-                    robot_name = batch.path if isinstance(batch.path, str) else None
-                if robot_name is None:
-                    # バッチの先頭ノードが属するファイル名など、必要に応じて拡張してください
-                    robot_name = "unknown"
-
-                per_robot_err.setdefault(robot_name, []).append(err.detach().cpu())
+            # ===== 個別ノード結果の収集 (兼 per_robot_csv 用) =====
+            if sel is not None:
+                M = sel.shape[0]
+                graph_ids = batch.batch[sel]  # [M] tensor, graph ID for each masked node
+                local_indices = sel - batch.ptr[graph_ids] # [M] tensor, local node index
+                
+                # 'name' は build_data で d.name = urdf_path として設定されている
+                # batch.name は list[str] of graph names
+                robot_names_list = getattr(batch, "name", ["unknown"] * batch.num_graphs)
+                
+                err_vectors_cpu = err.detach().cpu()
+                targ_vectors_cpu = targ_sel.detach().cpu()
+        
+                for i in range(M):
+                    gid = graph_ids[i].item()
+                    robot_name = Path(robot_names_list[gid]).name # ファイル名
+                    local_idx = local_indices[i].item()
+                    err_i = err_vectors_cpu[i].unsqueeze(0)   # [1, D] tensor
+                    targ_i = targ_vectors_cpu[i].unsqueeze(0) # [1, D] tensor
+        
+                    # 1. ターミナル表示用のリストに追加
+                    individual_results.append({
+                        "robot": robot_name,
+                        "local_node_idx": local_idx,
+                        "err": err_vectors_cpu[i],   # [D] tensor
+                        "targ": targ_vectors_cpu[i], # [D] tensor
+                    })
+                    
+                    # 2. ロボット別CSV用の辞書に追加
+                    if out_csv_by_robot is not None:
+                        # robot_name (ファイル名) をキーにする
+                        per_robot_err.setdefault(robot_name, []).append(err_i)
+                        per_robot_targ.setdefault(robot_name, []).append(targ_i)
 
     # ===== 全ノード（マスク適用後）の誤差を一括テンソルに =====
     if len(err_rows) == 0:
         print("[WARN] No data to evaluate in compute_recon_metrics_origscale")
         return
 
-    E = torch.cat(err_rows, dim=0)  # [M, D]
+    E = torch.cat(err_rows, dim=0)  # [M, D] (誤差)
+    T = torch.cat(targ_rows, dim=0)  # [M, D] (真値) <--- 追加
     D = E.shape[1]
+    # === 追加開始: Theta Error 計算 ===
+    theta_deg_mean = np.nan
+    # 特徴名から axis_x, axis_y, axis_z のインデックスを探す
+    try:
+        # feat_names がまだ定義前なら仮で作成（通常は引数で渡ってくるか、後で定義される）
+        _ft = feature_names if (feature_names is not None and len(feature_names) == D) \
+              else [f"f{i}" for i in range(D)]
+        ax_idx = _ft.index("axis_x")
+        ay_idx = _ft.index("axis_y")
+        az_idx = _ft.index("axis_z")
 
+        # 予測値 P = T + E を復元
+        P = T + E
+
+        # ベクトルを取り出す [M, 3]
+        v_pred = P[:, [ax_idx, ay_idx, az_idx]]
+        v_targ = T[:, [ax_idx, ay_idx, az_idx]]
+
+        # 正規化 (念のため。ゼロベクトル回避でイプシロンを入れる)
+        v_pred = v_pred / (v_pred.norm(dim=1, keepdim=True) + 1e-9)
+        v_targ = v_targ / (v_targ.norm(dim=1, keepdim=True) + 1e-9)
+
+        # 内積 -> clamp -> acos -> degree
+        dot = (v_pred * v_targ).sum(dim=1).clamp(-1.0, 1.0)
+        theta_rad = torch.acos(dot)
+        theta_deg = torch.rad2deg(theta_rad)
+        theta_deg_mean = theta_deg.mean().item()
+
+    except ValueError:
+        # axisカラムが見つからない場合はスキップ
+        pass
     # ===== 集計（mean/sum） =====
     if reduction == "sum":
         mae_all = E.abs().sum(dim=0).numpy()
@@ -1250,39 +1313,57 @@ def compute_recon_metrics_origscale(
         name_i = feat_names[i]
         print(f"{i:>3} | {name_i:<18} | {mae_all[i]:>12.6g} | {rmse_all[i]:>12.6g}")
     print("-" * 56)
+    if not np.isnan(theta_deg_mean):
+         print(f"Axis Angle Error (Mean): {theta_deg_mean:.4f} deg")
+         print("-" * 56)
+         
+    # ===
+    targ_abs_mean = (T.abs().mean(dim=0) + 1e-9).numpy()
+    targ_abs_mean = np.where(np.isfinite(targ_abs_mean), targ_abs_mean, 1e-9)
 
-    # ===== 誤差率（Min–Max 幅で割る） =====
-    width_all = np.ones(D, dtype=np.float64)
-    if isinstance(z_stats, dict):
-        # width があれば使う。なければ min/max から作る。
-        # z_cols で部分列指定されている設計なので、全列に展開する。
-        zcols = z_stats.get("z_cols", list(range(D)))
-        if "width" in z_stats:
-            win = np.asarray(z_stats["width"], dtype=np.float64)
-            for j, c in enumerate(zcols):
-                if 0 <= c < D:
-                    width_all[c] = max(float(win[j]), 1e-12)
-        else:
-            if "min" in z_stats and "max" in z_stats:
-                min_in = np.asarray(z_stats["min"], dtype=np.float64)
-                max_in = np.asarray(z_stats["max"], dtype=np.float64)
-                for j, c in enumerate(zcols):
-                    if 0 <= c < D:
-                        width_all[c] = max(float(max_in[j] - min_in[j]), 1e-12)
-
-    mae_rate = mae_all / width_all
-    rmse_rate = rmse_all / width_all
+    mae_rate = mae_all / targ_abs_mean
+    rmse_rate = rmse_all / targ_abs_mean
     order = np.argsort(mae_rate)[::-1]  # 大きい順
 
-    print("\n--- Error rate by Min–Max range (sorted by MAE rate, desc) ---")
-    print(f"{'rank':>4} | {'idx':>3} | {'feature':<18} | {'MAE':>9} | {'width':>9} | {'(MAE/width)%':>12} | {'(RMSE/width)%':>14}")
+    print("\n--- Error rate by Mean Absolute Target (sorted by MAE rate, desc) ---")
+    print(f"{'rank':>4} | {'idx':>3} | {'feature':<18} | {'MAE':>9} | {'|Targ|':>9} | {'(MAE/|Targ|)%':>12} | {'(RMSE/|Targ|)%':>14}")
     print("-" * 78)
     for r, i in enumerate(order, 1):
         name_i = feat_names[i]
         print(f"{r:>4} | {i:>3} | {name_i:<18} | "
-              f"{mae_all[i]:>9.4g} | {width_all[i]:>9.4g} | "
+              f"{mae_all[i]:>9.4g} | {targ_abs_mean[i]:>9.4g} | " # <--- width_all を targ_abs_mean に
               f"{100.0 * mae_rate[i]:>12.2f} | {100.0 * rmse_rate[i]:>14.2f}")
     print("-" * 78)
+
+    # ===== 個別ノードごとの誤差（サマリ） =====
+    if individual_results:
+        print("\n--- Reconstruction error per Node (MAE) ---")
+        # ヘッダ: robot, node_idx, MAE_all, MAE_deg, MAE_mass, MAE_j_revo
+        try:
+            # 'deg', 'mass', 'j_revo' の列インデックスを探す
+            idx_deg = feat_names.index("deg")
+            idx_mass = feat_names.index("mass")
+            idx_revo = feat_names.index("j_revo")
+        except ValueError:
+            # もし 'deg' などが見つからなかった場合 (特徴名が変わった場合など)
+            print(f"{'Robot':<20} | {'Node':>4} | {'MAE_All':>9} | {'|Targ|_All':>9}")
+            print("-" * 56)
+            for res in individual_results:
+                mae_all_node = res["err"].abs().mean().item() # <--- 変更
+                targ_all = res["targ"].abs().mean().item()
+                print(f"{res['robot']:<20} | {res['local_node_idx']:>4} | {mae_all_node:>9.4g} | {targ_all:>9.4g}") # <--- 変更
+        else:
+            # 'deg', 'mass', 'j_revo' が見つかった場合 (詳細版)
+            print(f"{'Robot':<20} | {'Node':>4} | {'MAE_All':>9} | {'MAE_deg':>9} | {'MAE_mass':>9} | {'MAE_j_revo':>9}")
+            print("-" * 75)
+            for res in individual_results:
+                mae_all_node = res["err"].abs().mean().item() # <--- 変数名を mae_all から mae_all_node に変更
+                mae_deg = res["err"][idx_deg].abs().item()
+                mae_mass = res["err"][idx_mass].abs().item()
+                mae_revo = res["err"][idx_revo].abs().item()
+                print(f"{res['robot']:<20} | {res['local_node_idx']:>4} | "
+                      f"{mae_all_node:>9.4g} | {mae_deg:>9.4g} | {mae_mass:>9.4g} | {mae_revo:>9.4g}") # <--- ここも変更
+            print("-" * 75)
 
     # ===== CSV（全体） =====
     if out_csv:
@@ -1295,7 +1376,7 @@ def compute_recon_metrics_origscale(
                 w.writerow([
                     i, feat_names[i],
                     float(mae_all[i]), float(rmse_all[i]),
-                    float(width_all[i]),
+                    float(targ_abs_mean[i]),
                     float(mae_rate[i]), float(rmse_rate[i]),
                     int(bool(use_mask_only)), str(mask_mode), int(mask_k), str(reduction),
                     float(overall_mae),
@@ -1306,25 +1387,45 @@ def compute_recon_metrics_origscale(
         os.makedirs(os.path.dirname(out_csv_by_robot), exist_ok=True)
         with open(out_csv_by_robot, "w", newline="") as f:
             w = csv.writer(f)
+            # ヘッダ (robot 列を追加)
             w.writerow(["robot", "idx", "feature", "mae", "rmse",
-                        "width", "mae_rate", "rmse_rate"])
-            for robot, errs in per_robot_err.items():
-                Ei = torch.cat(errs, dim=0)  # [Mi, D]
+                        "targ_abs_mean", "mae_rate", "rmse_rate"])
+            
+            # per_robot_err と per_robot_targ のキーが一致している前提でループ
+            for robot in per_robot_err.keys():
+                errs = per_robot_err.get(robot, [])
+                targs = per_robot_targ.get(robot, []) # <--- ロボットごとの真値を取得
+
+                if not errs or not targs:
+                    continue
+
+                Ei = torch.cat(errs, dim=0)  # [Mi, D] (誤差)
+                Ti = torch.cat(targs, dim=0) # [Mi, D] (真値) <--- 追加
+
                 if Ei.numel() == 0:
                     continue
+                
+                # ロボットごとの MAE/RMSE
                 if reduction == "sum":
                     mae_i = Ei.abs().sum(dim=0).numpy()
                     rmse_i = torch.sqrt((Ei ** 2).sum(dim=0)).numpy()
                 else:
                     mae_i = Ei.abs().mean(dim=0).numpy()
                     rmse_i = torch.sqrt((Ei ** 2).mean(dim=0)).numpy()
-                mae_rate_i = mae_i / np.maximum(width_all, 1e-12)
-                rmse_rate_i = rmse_i / np.maximum(width_all, 1e-12)
+                
+                # [変更 1] ロボットごとの分母（|Targ|）を計算
+                targ_abs_mean_i = (Ti.abs().mean(dim=0) + 1e-9).numpy()
+                targ_abs_mean_i = np.where(np.isfinite(targ_abs_mean_i), targ_abs_mean_i, 1e-9)
+
+                # [変更 2] ロボットごとの分母で誤差率を計算
+                mae_rate_i = mae_i / targ_abs_mean_i
+                rmse_rate_i = rmse_i / targ_abs_mean_i
+
                 for j in range(D):
                     w.writerow([
                         robot, j, feat_names[j],
                         float(mae_i[j]), float(rmse_i[j]),
-                        float(width_all[j]),
+                        float(targ_abs_mean_i[j]), # [変更 3] ロボットごとの分母を書き込む
                         float(mae_rate_i[j]), float(rmse_rate_i[j]),
                     ])
 
@@ -1386,6 +1487,41 @@ def print_feature_mean_std(stats: Dict[str, Any], feature_names=None) -> None:
         print(f"{c:>3} | {fname:<18} | {mu:>12.6g} | {sd:>12.6g}")
     print("-" * 72)
 
+def create_composite_post_fn(
+    stats: dict,
+    names: list[str],
+    snap_onehot: bool = True,
+    unit_axis: bool = True
+):
+    """
+    逆正規化 (denorm) と後処理 (snap/unitize) を合成した post_fn を作成するファクトリ。
+    
+    引数:
+      - stats: 逆正規化に使う統計 (stats_mm)
+      - names: snap/unitize に使う特徴名リスト (names_long)
+    """
+    
+    # 1. (任意) one-hotスナップ / axis単位化 関数 (utils内の既存関数)
+    _snap_fn = make_postprocess_fn(
+        names=names,
+        snap_onehot=snap_onehot,
+        unit_axis=unit_axis
+    )
+
+    # 2. 合成された post_fn (これが compute_recon_metrics_origscale に渡される)
+    def post_fn(pred_norm, targ_norm, batch):
+        # まず逆正規化 (utils内の既存関数 _denorm_batch を使用)
+        pred_orig = _denorm_batch(pred_norm, stats)
+        targ_orig = _denorm_batch(targ_norm, stats)
+        
+        # 次にスナップ/単位化 (任意)
+        if _snap_fn is not None:
+            # _snap_fn は (pred, targ, names) を受け取る設計だった
+            pred_orig, targ_orig = _snap_fn(pred_orig, targ_orig, names)
+        
+        return pred_orig, targ_orig
+
+    return post_fn
 
 # 画面表示だけの後処理（one-hotスナップ & 軸ベクトルの単位化）
 def make_postprocess_fn(names, snap_onehot: bool, unit_axis: bool):

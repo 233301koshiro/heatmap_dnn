@@ -32,6 +32,29 @@ def mlp(sizes: List[int], dropout: float = 0.1, verbose: bool = False) -> nn.Seq
             layers += [nn.LayerNorm(sizes[i+1]), nn.ReLU(), nn.Dropout(dropout)]
     return nn.Sequential(*layers)
 
+#massやorigin_xyzにノイズを加え,データをかさ増しする関数
+def apply_noise_augmentation(data, noise_level=0.05):
+    """
+    data.x の特定の列に学習時のみノイズを加える。
+    対象: mass(2), origin_xyz(10,11,12) とする例
+    """
+    # ノイズ対象の列インデックス
+    target_cols = [2, 10, 11, 12] # mass, origin_x, origin_y, origin_z
+
+    # データの複製（元のデータを壊さないため。必要に応じて）
+    x_aug = data.x.clone()
+
+    for c in target_cols:
+        # [-noise_level, +noise_level] の一様乱数を生成
+        noise = (torch.rand_like(x_aug[:, c]) * 2 - 1) * noise_level
+        # 乗法ノイズ: value * (1 + noise)
+        x_aug[:, c] = x_aug[:, c] * (1.0 + noise)
+
+    # dataの書き換え (shallow copyしてxだけ差し替えると安全)
+    data_aug = data.clone()
+    data_aug.x = x_aug
+    return data_aug
+
 # =========================================================
 # マスクノード選択（必要に応じて verbose 出力）
 # =========================================================
@@ -231,7 +254,10 @@ class MaskedTreeAutoencoder(nn.Module):
 
         # Decoder
         x_hat = self.decoder(mask_flag, h_enc, ei)
-
+        # 軸成分(9,10,11と仮定)を正規化。イプシロンを入れてゼロ割を防ぐ
+        #axis_pred = x_hat[:, 9:12]
+        #axis_norm = axis_pred / (axis_pred.norm(dim=1, keepdim=True) + 1e-9)
+        #x_hat = torch.cat([x_hat[:, :9], axis_norm, x_hat[:, 12:]], dim=1)
         out = {"x_hat": x_hat, "mask_flag": mask_flag, "node_context": h_enc}
         if recon_only_masked and (mask_idx is not None) and (mask_idx.numel() > 0):
             out["recon_target_idx"] = mask_idx
@@ -278,6 +304,8 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
     total_loss = 0.0
     for step, data in enumerate(loader, start=1):
         data = data.to(device)
+        if model.training:
+            data = apply_noise_augmentation(data)
         model._opt.zero_grad(set_to_none=True)
 
         #out  = model(data)
