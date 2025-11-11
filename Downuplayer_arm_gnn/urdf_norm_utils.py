@@ -6,6 +6,19 @@ from torch_geometric.data import Data
 # 正規化対象のデフォルト列 (deg, depth, mass, origin_x, origin_y, origin_z)
 DEFAULT_NORM_COLS = [0, 1, 2, 12, 13, 14]
 
+#massの推定が不安定な場合なのでデータを読み込んだあとにmassの列を1にしてみる
+def fix_mass_to_one(dataset: List[Data]) -> None:
+    """
+    データセット内のすべてのデータに対して、質量（mass）列を1.0に固定します。
+    これにより、質量推定の不安定さを回避します。
+    
+    Args:
+        dataset (List[Data]): PyGデータオブジェクトのリスト。
+    """
+    mass_col_idx = 2  # 質量列のインデックス
+    for d in dataset:
+        d.x[:, mass_col_idx] = 1.0
+
 def compute_global_minmax_stats(dataset: List[Data], norm_cols: List[int] = DEFAULT_NORM_COLS, eps: float = 1e-8) -> Dict[str, Any]:
     """
     データセット全体から指定列のMin-Max統計（最小値、最大値、幅）を計算します。

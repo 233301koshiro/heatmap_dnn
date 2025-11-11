@@ -200,7 +200,7 @@ def layered_layout(S: nx.DiGraph) -> Dict[str, Tuple[float, float]]:
             pos[n] = (float(x), float(-d))
     return pos
 
-def graph_features(G: nx.DiGraph, cfg=None) -> Tuple[nx.DiGraph, List[str], np.ndarray, np.ndarray, np.ndarray, float, List]:
+def graph_features(G: nx.DiGraph) -> Tuple[nx.DiGraph, List[str], np.ndarray, np.ndarray, np.ndarray, float, List]:
     """
     NetworkXグラフからGNN用の数値特徴量を抽出します。
     
@@ -254,7 +254,7 @@ def graph_features(G: nx.DiGraph, cfg=None) -> Tuple[nx.DiGraph, List[str], np.n
     E = np.zeros((edge_index.shape[1], 0), dtype=np.float32)
     return S, nodes, X_np, edge_index, E, 1.0, []
 
-def urdf_to_feature_graph(path: str, cfg=None):
+def urdf_to_feature_graph(path: str):
     """
     URDFファイルパスから直接特徴量付きグラフを生成する便利関数です。
     
@@ -267,7 +267,7 @@ def urdf_to_feature_graph(path: str, cfg=None):
     """
     root = load_urdf_any(path)
     G, _ = urdf_to_graph(root)
-    return graph_features(G, cfg)
+    return graph_features(G)
 
 def to_pyg(X: np.ndarray, edge_index: np.ndarray, E: np.ndarray, y: Optional[float] = None) -> Data:
     """

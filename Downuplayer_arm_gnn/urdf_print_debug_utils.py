@@ -5,8 +5,8 @@ import math
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Callable, Tuple, Sequence
 from torch_geometric.data import Data
-from urdf_core import FEATURE_NAMES
-from urdf_norm import denorm_batch
+from urdf_core_utils import FEATURE_NAMES
+from urdf_norm_utils import denorm_batch
 
 # ========= データ検査・レポート関数 =========
 
@@ -39,6 +39,7 @@ def scan_nonfinite_features(dataset: List[Data], feature_names: List[str] = FEAT
     
     if total_bad == 0:
         print("[debug] No non-finite values found.")
+        print("infやNaNは見つかりませんでした。")
 
 def grep_inf_in_urdf(path: str) -> List[Tuple[int, str]]:
     """
@@ -63,7 +64,7 @@ def grep_inf_in_urdf(path: str) -> List[Tuple[int, str]]:
              print(f"  ... (total {len(bad_lines)} lines)")
     return bad_lines
 
-def minimal_graph_report(d: Data, max_nodes: int = 5, float_fmt: str = ":.6g") -> None:
+def minimal_graph_report(d: Data, max_nodes: int = 5, float_fmt: str = ".6g") -> None:
     """
     単一のグラフデータの簡易レポート（ノード数、エッジ数、特徴量の先頭数行）を表示します。
     """
@@ -87,6 +88,9 @@ def minimal_graph_report(d: Data, max_nodes: int = 5, float_fmt: str = ":.6g") -
     headers = ["node_idx"] + (["node_name"] if node_names is not None else []) + feat_names[:F]
     
     # データ行作成
+    # 安全対策: float_fmt に余計なコロンが含まれていたら削除する
+    fmt = float_fmt.lstrip(":")
+    
     rows = []
     for i in range(show_n):
         row = [str(i)]
@@ -95,7 +99,7 @@ def minimal_graph_report(d: Data, max_nodes: int = 5, float_fmt: str = ":.6g") -
              val = x_cpu[i, j]
              if math.isnan(val): row.append("NaN")
              elif math.isinf(val): row.append("Inf" if val > 0 else "-Inf")
-             else: row.append(f"{val{float_fmt}}")
+             else: row.append(f"{val:{fmt}}")
         rows.append(row)
 
     # 列幅計算と表示
@@ -118,6 +122,7 @@ def minimal_dataset_report(dataset: Sequence[Data], max_graphs: int = 1, max_nod
     """
     データセット内の最初の数件のグラフについて簡易レポートを表示します。
     """
+    print("データセットのグラフの一例を表示します。")
     print(f"[dataset] total graphs: {len(dataset)}")
     for i, d in enumerate(dataset[:max_graphs]):
         print(f"\n--- Graph {i} ---")
@@ -153,11 +158,70 @@ def debug_edge_index(data: Data, k: int = 10, title: str = "") -> None:
 
 # ========= 統計・正規化デバッグ関数 =========
 
+def compute_feature_mean_std_from_dataset(
+    dataset: Sequence[Data],
+    cols: Optional[Sequence[int]] = None,
+    drop_nonfinite: bool = True,
+    population_std: bool = True,
+) -> Dict[str, Any]:
+    """
+    正規化前の dataset から、列ごとの mean/std/count を集計する。
+    """
+    mats = []
+    for d in dataset:
+        X = d.x.detach().cpu().numpy()
+        mats.append(X)
+    M = np.vstack(mats)
+
+    if cols is None:
+        cols = list(range(M.shape[1]))
+    else:
+        cols = list(cols)
+
+    A = M[:, cols].astype(np.float64, copy=True)
+
+    if drop_nonfinite:
+        mask = np.isfinite(A)
+        valid = np.all(mask, axis=1)
+        A = A[valid]
+
+    ddof = 0 if population_std else 1
+    mean = np.nanmean(A, axis=0)
+    std  = np.nanstd(A, axis=0, ddof=ddof)
+    cnt  = np.sum(np.all(np.isfinite(A), axis=1))
+
+    return {
+        "cols": cols,
+        "mean": mean.tolist(),
+        "std":  std.tolist(),
+        "count": int(cnt),
+        "ddof": ddof,
+        "method": "data_stats",
+    }
+
+def print_feature_mean_std(stats: Dict[str, Any], feature_names: Optional[List[str]] = None) -> None:
+    """
+    計算された平均と標準偏差を表示します。
+    """
+    print("特徴量の平均と標準偏差を表示します。(標準偏差はデータのばらつきを表す)")
+    print("\n=== Feature Mean/Std ===")
+    cols = stats["cols"]
+    mean = stats["mean"]
+    std  = stats["std"]
+    print(f"{'col':>3} | {'feat':<18} | {'mean':>12} | {'std':>12}")
+    print("-" * 72)
+    for c, mu, sd in zip(cols, mean, std):
+        fname = (feature_names[c] if feature_names and 0 <= c < len(feature_names) else f"f{c}")
+        print(f"{c:>3} | {fname:<18} | {mu:>12.6g} | {sd:>12.6g}")
+    print("-" * 72)
+
 def print_minmax_stats(stats: Dict[str, Any], feature_names: List[str] = FEATURE_NAMES) -> None:
     """
     計算されたMin-Max統計量（最小値、最大値）を見やすく表示します。
     正規化が正しく行われているかの確認に有用です。
     """
+    print("minimumおよびmaximum値を表示します。(特徴量の範囲を把握するため)")
+    print("minmaxしていない特徴量も含めてる(axis,origin)")
     print("\n=== Min-Max Statistics ===")
     cols = stats.get("norm_cols", [])
     vmin = stats.get("min", [])
@@ -175,6 +239,8 @@ def dump_normalized_feature_table(Xn: np.ndarray, stats: Dict[str, Any], feature
     """
     正規化された特徴量テーブルの一部を表示し、さらにそれを逆正規化した値も併記して確認します。
     """
+    print("正規化された特徴量とその逆正規化後の値を表示します。")
+    print("選定したノードは最初の数行です。")
     print("\n=== Normalized Feature Preview ===")
     # PyTorchテンソルに変換して逆正規化
     Xn_t = torch.as_tensor(Xn, dtype=torch.float32)
@@ -193,22 +259,11 @@ def dump_normalized_feature_table(Xn: np.ndarray, stats: Dict[str, Any], feature
 
 # ========= モデル評価・学習デバッグ関数 =========
 
-def _compute_axis_angle_error(pred: torch.Tensor, targ: torch.Tensor, feature_names: List[str]) -> Optional[float]:
-    """(内部) 軸ベクトルの角度誤差（度）の平均を計算"""
-    try:
-        ax, ay, az = feature_names.index("axis_x"), feature_names.index("axis_y"), feature_names.index("axis_z")
-    except ValueError: return None
-    vp, vt = pred[:, [ax, ay, az]], targ[:, [ax, ay, az]]
-    vp = vp / (vp.norm(dim=1, keepdim=True) + 1e-9)
-    vt = vt / (vt.norm(dim=1, keepdim=True) + 1e-9)
-    return torch.rad2deg(torch.acos((vp * vt).sum(dim=1).clamp(-1.0, 1.0))).mean().item()
-
 def print_step_header(step: int, tag: str = "train"):
     print(f"\n===== {tag.upper()} STEP {step} =====")
 
 def print_step_footer(step: int, tag: str = "train"):
-    print(f"===== END {tag.upper()} STEP {step} =====\n")  # ← 注: 本文は変更不可指定なのでそのまま
-
+    print(f"===== END {tag.upper()} STEP {step} =====\n")
 
 @torch.no_grad()
 def compute_recon_metrics_origscale(
@@ -221,323 +276,155 @@ def compute_recon_metrics_origscale(
     out_csv_by_robot: Optional[str] = None,
     use_mask_only: bool = False,
     postprocess_fn: Optional[Callable] = None,
-    # 追加パラメータ（debug.py 側はフラグを渡すだけ）
-    mask_mode: str = "none",      # "none" | "one" | "k"
-    mask_k: int = 1,              # mask_mode="k" のとき各グラフから選ぶノード数
+    mask_mode: str = "none",
+    mask_k: int = 1,
     mask_seed: Optional[int] = None,
-    reduction: str = "mean",      # "mean" | "sum"
+    reduction: str = "mean",
 ):
     """
     元スケール（逆正規化後）で per-feature の誤差(MAE/RMSE)を集計して表示・CSV保存する。
-
-    引数:
-      - model: 予測モデル（forward: batch → pred）
-      - loader: PyG DataLoader（Batch を返す想定）
-      - device: torch.device
-      - z_stats: min-max の統計（dict）。幅 'width' と列 'z_cols' を使って誤差率を計算する
-      - feature_names: 特徴名のリスト（len = D）
-      - out_csv: per-feature 集計（全体）の CSV 出力先
-      - out_csv_by_robot: ロボット（ファイル）ごとの集計 CSV 出力先（任意）
-      - use_mask_only: True のとき、マスクしたノードのみで集計
-      - postprocess_fn: (pred, targ, batch) -> (pred_orig, targ_orig) を返す関数（逆正規化など）
-      - mask_mode: "none" | "one" | "k"（各グラフで選ぶノード数のモード）
-      - mask_k: mask_mode="k" のときのノード数
-      - mask_seed: ノード抽出の乱数シード
-      - reduction: "mean" or "sum"（誤差の縮約方法。監視用途に sum も選べる）
     """
     model.eval()
-
-    # ===== 乱数（マスク用） =====
     _rng = np.random.RandomState(mask_seed) if mask_seed is not None else np.random
 
-    # ===== 収集バッファ =====
-    #   err_rows: すべての（マスク適用済み）ノード行の誤差を後でまとめて計算
     err_rows: List[torch.Tensor] = []
-    targ_rows: List[torch.Tensor] = [] # <--- 追加
-    #   per-robot 集計用
+    targ_rows: List[torch.Tensor] = []
     per_robot_err: Dict[str, List[torch.Tensor]] = {}
-    per_robot_targ: Dict[str, List[torch.Tensor]] = {} # ロボット別も変更する場合はここも
-    individual_results: List[dict] = [] # <--- この行を追加
+    per_robot_targ: Dict[str, List[torch.Tensor]] = {}
+    individual_results: List[dict] = []
 
-    # ===== 走査 =====
     with torch.no_grad():
         for batch in loader:
             batch = batch.to(device)
-
-            # 予測 / 目標
             pred = model(batch)
-            # モデルが (pred, aux, ...) を返す場合に備えて先頭を使用
-            if isinstance(pred, (tuple, list)):
-                pred = pred[0]
-            targ = batch.x                     # [N, D]
+            if isinstance(pred, (tuple, list)): pred = pred[0]
+            targ = batch.x
 
-            # 逆正規化などが必要ならここで
             if postprocess_fn is not None:
                 out = postprocess_fn(pred, targ, batch)
-                # postprocess_fn が (pred, targ) か (pred, targ, …) を返す場合に対応
-                if isinstance(out, (tuple, list)):
-                    pred, targ = out[0], out[1]
-                else:
-                    pred, targ = out  # もともと (pred, targ) を返す設計ならそのまま
-            # ===== マスク選定 =====
-            sel = None  # index tensor on device
+                if isinstance(out, (tuple, list)): pred, targ = out[0], out[1]
+                else: pred, targ = out
+
+            sel = None
             if use_mask_only:
                 if hasattr(batch, "mask_idx"):
-                    # 既にどこかで作られていればそれを使う（グローバル index 想定）
-                    sel = batch.mask_idx
-                    if sel.device != pred.device:
-                        sel = sel.to(pred.device)
-                else:
-                    # この関数内でバッチから作る（各グラフのノード範囲を batch.ptr で取得）
-                    if hasattr(batch, "ptr"):
-                        ptr = batch.ptr.detach().cpu().numpy()  # shape [G+1]
-                        picks: List[int] = []
-                        for gi in range(len(ptr) - 1):
-                            a, b = int(ptr[gi]), int(ptr[gi + 1])
-                            if b <= a:
-                                continue
-                            if mask_mode == "one":
-                                picks.append(int(_rng.randint(a, b)))
-                            elif mask_mode == "k":
-                                k = max(1, int(mask_k))
-                                k = min(k, b - a)
-                                if k == 1:
-                                    picks.append(int(_rng.randint(a, b)))
-                                else:
-                                    idxs = _rng.choice(np.arange(a, b), size=k, replace=False)
-                                    picks.extend([int(i) for i in idxs])
-                            else:  # "none" or 未知指定 → 全ノード
-                                picks.extend(range(a, b))
-                        if len(picks) > 0:
-                            sel = torch.as_tensor(picks, dtype=torch.long, device=pred.device)
-                    # ptr がない場合は全ノード
-                    if sel is None:
-                        sel = torch.arange(pred.shape[0], device=pred.device)
+                    sel = batch.mask_idx.to(pred.device)
+                elif hasattr(batch, "ptr"):
+                    ptr = batch.ptr.detach().cpu().numpy()
+                    picks = []
+                    for gi in range(len(ptr) - 1):
+                        a, b = int(ptr[gi]), int(ptr[gi + 1])
+                        if b <= a: continue
+                        if mask_mode == "one":
+                            picks.append(int(_rng.randint(a, b)))
+                        elif mask_mode == "k":
+                            k = min(max(1, int(mask_k)), b - a)
+                            idxs = _rng.choice(np.arange(a, b), size=k, replace=False)
+                            picks.extend([int(i) for i in idxs])
+                        else:
+                            picks.extend(range(a, b))
+                    if picks: sel = torch.tensor(picks, dtype=torch.long, device=pred.device)
+                
+                if sel is None: sel = torch.arange(pred.shape[0], device=pred.device)
 
-            # ===== 誤差（元スケール） =====
-            err = pred - targ                  # [N, D]
+            err = pred - targ
             if sel is not None:
-                targ_sel = targ.index_select(0, sel) # <--- 追加
-                err = err.index_select(0, sel) # マスク適用
-            else: # <--- 追加 (sel=None の場合)
-                targ_sel = targ # <--- 追加
+                targ_sel = targ.index_select(0, sel)
+                err = err.index_select(0, sel)
+            else:
+                targ_sel = targ
 
-            # まとめて後で集計
             err_rows.append(err.detach().cpu())
-            targ_rows.append(targ_sel.detach().cpu()) 
+            targ_rows.append(targ_sel.detach().cpu())
 
-            # ロボット（ファイル）単位の集計（任意）
-            # ===== 個別ノード結果の収集 (兼 per_robot_csv 用) =====
-            if sel is not None:
+            if sel is not None and (individual_results is not None or out_csv_by_robot is not None):
                 M = sel.shape[0]
-                graph_ids = batch.batch[sel]  # [M] tensor, graph ID for each masked node
-                local_indices = sel - batch.ptr[graph_ids] # [M] tensor, local node index
-                
-                # 'name' は build_data で d.name = urdf_path として設定されている
-                # batch.name は list[str] of graph names
-                robot_names_list = getattr(batch, "name", ["unknown"] * batch.num_graphs)
-                
-                err_vectors_cpu = err.detach().cpu()
-                targ_vectors_cpu = targ_sel.detach().cpu()
-        
+                graph_ids = batch.batch[sel]
+                local_indices = sel - batch.ptr[graph_ids]
+                robot_names = getattr(batch, "name", ["unknown"] * batch.num_graphs)
+                e_cpu, t_cpu = err.detach().cpu(), targ_sel.detach().cpu()
                 for i in range(M):
-                    gid = graph_ids[i].item()
-                    robot_name = Path(robot_names_list[gid]).name # ファイル名
-                    local_idx = local_indices[i].item()
-                    err_i = err_vectors_cpu[i].unsqueeze(0)   # [1, D] tensor
-                    targ_i = targ_vectors_cpu[i].unsqueeze(0) # [1, D] tensor
-        
-                    # 1. ターミナル表示用のリストに追加
-                    individual_results.append({
-                        "robot": robot_name,
-                        "local_node_idx": local_idx,
-                        "err": err_vectors_cpu[i],   # [D] tensor
-                        "targ": targ_vectors_cpu[i], # [D] tensor
-                    })
-                    
-                    # 2. ロボット別CSV用の辞書に追加
-                    if out_csv_by_robot is not None:
-                        # robot_name (ファイル名) をキーにする
-                        per_robot_err.setdefault(robot_name, []).append(err_i)
-                        per_robot_targ.setdefault(robot_name, []).append(targ_i)
+                    rname = Path(robot_names[graph_ids[i].item()]).name
+                    individual_results.append({"robot": rname, "local_node_idx": local_indices[i].item(), "err": e_cpu[i], "targ": t_cpu[i]})
+                    if out_csv_by_robot:
+                        per_robot_err.setdefault(rname, []).append(e_cpu[i].unsqueeze(0))
+                        per_robot_targ.setdefault(rname, []).append(t_cpu[i].unsqueeze(0))
 
-    # ===== 全ノード（マスク適用後）の誤差を一括テンソルに =====
-    if len(err_rows) == 0:
-        print("[WARN] No data to evaluate in compute_recon_metrics_origscale")
+    if not err_rows:
+        print("[WARN] No data to evaluate.")
         return
 
-    E = torch.cat(err_rows, dim=0)  # [M, D] (誤差)
-    T = torch.cat(targ_rows, dim=0)  # [M, D] (真値) <--- 追加
+    E = torch.cat(err_rows, dim=0)
+    T = torch.cat(targ_rows, dim=0)
     D = E.shape[1]
-    # === 追加開始: Theta Error 計算 ===
+
     theta_deg_mean = np.nan
-    # 特徴名から axis_x, axis_y, axis_z のインデックスを探す
     try:
-        # feat_names がまだ定義前なら仮で作成（通常は引数で渡ってくるか、後で定義される）
-        _ft = feature_names if (feature_names is not None and len(feature_names) == D) \
-              else [f"f{i}" for i in range(D)]
-        ax_idx = _ft.index("axis_x")
-        ay_idx = _ft.index("axis_y")
-        az_idx = _ft.index("axis_z")
-
-        # 予測値 P = T + E を復元
+        _ft = feature_names if (feature_names and len(feature_names) == D) else [f"f{i}" for i in range(D)]
+        ax, ay, az = _ft.index("axis_x"), _ft.index("axis_y"), _ft.index("axis_z")
         P = T + E
+        vp, vt = P[:, [ax, ay, az]], T[:, [ax, ay, az]]
+        vp = vp / (vp.norm(dim=1, keepdim=True) + 1e-9)
+        vt = vt / (vt.norm(dim=1, keepdim=True) + 1e-9)
+        theta_deg_mean = torch.rad2deg(torch.acos((vp * vt).sum(dim=1).clamp(-1.0, 1.0))).mean().item()
+    except ValueError: pass
 
-        # ベクトルを取り出す [M, 3]
-        v_pred = P[:, [ax_idx, ay_idx, az_idx]]
-        v_targ = T[:, [ax_idx, ay_idx, az_idx]]
+    mae_all = E.abs().mean(dim=0).numpy() if reduction == "mean" else E.abs().sum(dim=0).numpy()
+    rmse_all = torch.sqrt((E**2).mean(dim=0)).numpy() if reduction == "mean" else torch.sqrt((E**2).sum(dim=0)).numpy()
+    overall_mae = E.abs().mean().item() if reduction == "mean" else E.abs().sum().item()
 
-        # 正規化 (念のため。ゼロベクトル回避でイプシロンを入れる)
-        v_pred = v_pred / (v_pred.norm(dim=1, keepdim=True) + 1e-9)
-        v_targ = v_targ / (v_targ.norm(dim=1, keepdim=True) + 1e-9)
-
-        # 内積 -> clamp -> acos -> degree
-        dot = (v_pred * v_targ).sum(dim=1).clamp(-1.0, 1.0)
-        theta_rad = torch.acos(dot)
-        theta_deg = torch.rad2deg(theta_rad)
-        theta_deg_mean = theta_deg.mean().item()
-
-    except ValueError:
-        # axisカラムが見つからない場合はスキップ
-        pass
-    # ===== 集計（mean/sum） =====
-    if reduction == "sum":
-        mae_all = E.abs().sum(dim=0).numpy()
-        rmse_all = torch.sqrt((E ** 2).sum(dim=0)).numpy()
-        overall_mae = float(E.abs().sum().item() / max(1, E.shape[0]))  # 表示用に平均も出しておく
-    else:  # "mean"
-        mae_all = E.abs().mean(dim=0).numpy()
-        rmse_all = torch.sqrt((E ** 2).mean(dim=0)).numpy()
-        overall_mae = float(E.abs().mean().item())
-
-    # ===== 表示（ヘッダ） =====
-    print(f"[TEST] recon_only_masked={use_mask_only} | mask_mode={mask_mode} | "
-          f"mask_k={mask_k} | red={reduction} | recon={overall_mae:.4f}\n")
-
-    # 特徴名
-    feat_names = feature_names if (feature_names is not None and len(feature_names) == D) \
-        else [f"f{i}" for i in range(D)]
-
-    # ===== per-feature の表 =====
-    print("--- Reconstruction error on ORIGINAL scale (per feature) ---")
+    print(f"[TEST] masked={use_mask_only} mode={mask_mode} k={mask_k} red={reduction} recon={overall_mae:.4f}\n")
+    feat_names = feature_names if (feature_names and len(feature_names) == D) else [f"f{i}" for i in range(D)]
+    print("--- Reconstruction Error by Feature ---")
+    print("全データをまとめて計算した誤差を表示")
     print(f"{'idx':>3} | {'feature':<18} | {'MAE':>12} | {'RMSE':>12}")
     print("-" * 56)
     for i in range(D):
-        name_i = feat_names[i]
-        print(f"{i:>3} | {name_i:<18} | {mae_all[i]:>12.6g} | {rmse_all[i]:>12.6g}")
+        print(f"{i:>3} | {feat_names[i]:<18} | {mae_all[i]:>12.6g} | {rmse_all[i]:>12.6g}")
     print("-" * 56)
-    if not np.isnan(theta_deg_mean):
-         print(f"Axis Angle Error (Mean): {theta_deg_mean:.4f} deg")
-         print("-" * 56)
-         
-    # ===
-    targ_abs_mean = (T.abs().mean(dim=0) + 1e-9).numpy()
-    targ_abs_mean = np.where(np.isfinite(targ_abs_mean), targ_abs_mean, 1e-9)
+    
+    print("\naxisベクトルの平均角度誤差θ")
+    if not np.isnan(theta_deg_mean): print(f"Mean Axis Angle Error: {theta_deg_mean:.4f} deg\n")
 
+    # === エラー率の計算 (分母を targ_abs_mean に変更) ===
+    targ_abs_mean = T.abs().mean(dim=0).clamp(min=1e-9).numpy()
     mae_rate = mae_all / targ_abs_mean
     rmse_rate = rmse_all / targ_abs_mean
-    order = np.argsort(mae_rate)[::-1]  # 大きい順
+    order = np.argsort(mae_rate)[::-1]
 
     print("\n--- Error rate by Mean Absolute Target (sorted by MAE rate, desc) ---")
-    print(f"{'rank':>4} | {'idx':>3} | {'feature':<18} | {'MAE':>9} | {'|Targ|':>9} | {'(MAE/|Targ|)%':>12} | {'(RMSE/|Targ|)%':>14}")
-    print("-" * 78)
+    print("test各データからランダム1ノード選択し，再現したときの誤差率を表示")
+    print(f"{'rank':>4} | {'idx':>3} | {'feature':<18} | {'MAE':>9} | {'|Targ|':>9} | {'(MAE/|Targ|)%':>13} | {'(RMSE/|Targ|)%':>15}")
+    print("-" * 80)
     for r, i in enumerate(order, 1):
-        name_i = feat_names[i]
-        print(f"{r:>4} | {i:>3} | {name_i:<18} | "
-              f"{mae_all[i]:>9.4g} | {targ_abs_mean[i]:>9.4g} | " # <--- width_all を targ_abs_mean に
-              f"{100.0 * mae_rate[i]:>12.2f} | {100.0 * rmse_rate[i]:>14.2f}")
-    print("-" * 78)
+        print(f"{r:>4} | {i:>3} | {feat_names[i]:<18} | {mae_all[i]:>9.4g} | {targ_abs_mean[i]:>9.4g} | {100.0*mae_rate[i]:>13.2f} | {100.0*rmse_rate[i]:>15.2f}")
+    print("-" * 80)
 
-    # ===== 個別ノードごとの誤差（サマリ） =====
     if individual_results:
         print("\n--- Reconstruction error per Node (MAE) ---")
-        # ヘッダ: robot, node_idx, MAE_all, MAE_deg, MAE_mass, MAE_j_revo
-        try:
-            # 'deg', 'mass', 'j_revo' の列インデックスを探す
-            idx_deg = feat_names.index("deg")
-            idx_mass = feat_names.index("mass")
-            idx_revo = feat_names.index("j_revo")
-        except ValueError:
-            # もし 'deg' などが見つからなかった場合 (特徴名が変わった場合など)
-            print(f"{'Robot':<20} | {'Node':>4} | {'MAE_All':>9} | {'|Targ|_All':>9}")
-            print("-" * 56)
-            for res in individual_results:
-                mae_all_node = res["err"].abs().mean().item() # <--- 変更
-                targ_all = res["targ"].abs().mean().item()
-                print(f"{res['robot']:<20} | {res['local_node_idx']:>4} | {mae_all_node:>9.4g} | {targ_all:>9.4g}") # <--- 変更
-        else:
-            # 'deg', 'mass', 'j_revo' が見つかった場合 (詳細版)
-            print(f"{'Robot':<20} | {'Node':>4} | {'MAE_All':>9} | {'MAE_deg':>9} | {'MAE_mass':>9} | {'MAE_j_revo':>9}")
-            print("-" * 75)
-            for res in individual_results:
-                mae_all_node = res["err"].abs().mean().item() # <--- 変数名を mae_all から mae_all_node に変更
-                mae_deg = res["err"][idx_deg].abs().item()
-                mae_mass = res["err"][idx_mass].abs().item()
-                mae_revo = res["err"][idx_revo].abs().item()
-                print(f"{res['robot']:<20} | {res['local_node_idx']:>4} | "
-                      f"{mae_all_node:>9.4g} | {mae_deg:>9.4g} | {mae_mass:>9.4g} | {mae_revo:>9.4g}") # <--- ここも変更
-            print("-" * 75)
+        print(f"{'Robot':<20} | {'Node':>4} | {'MAE_All':>9} | {'|Targ|_All':>11}")
+        print("-" * 58)
+        for res in individual_results[:20]:
+             print(f"{res['robot']:<20} | {res['local_node_idx']:>4} | {res['err'].abs().mean().item():>9.4g} | {res['targ'].abs().mean().item():>11.4g}")
+        if len(individual_results) > 20: print(f"... (total {len(individual_results)} nodes evaluated)")
 
-    # ===== CSV（全体） =====
     if out_csv:
-        os.makedirs(os.path.dirname(out_csv), exist_ok=True)
+        Path(out_csv).parent.mkdir(parents=True, exist_ok=True)
         with open(out_csv, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["idx", "feature", "mae", "rmse", "width", "mae_rate", "rmse_rate",
-                        "masked", "mask_mode", "mask_k", "reduction", "overall_mae"])
+            w.writerow(["idx", "feature", "mae", "rmse", "targ_abs_mean", "mae_rate", "rmse_rate", "masked", "mask_mode", "overall_mae"])
             for i in range(D):
-                w.writerow([
-                    i, feat_names[i],
-                    float(mae_all[i]), float(rmse_all[i]),
-                    float(targ_abs_mean[i]),
-                    float(mae_rate[i]), float(rmse_rate[i]),
-                    int(bool(use_mask_only)), str(mask_mode), int(mask_k), str(reduction),
-                    float(overall_mae),
-                ])
+                w.writerow([i, feat_names[i], mae_all[i], rmse_all[i], targ_abs_mean[i], mae_all[i]/targ_abs_mean[i], rmse_all[i]/targ_abs_mean[i], use_mask_only, mask_mode, overall_mae])
 
-    # ===== CSV（ロボットごと、任意） =====
     if out_csv_by_robot:
-        os.makedirs(os.path.dirname(out_csv_by_robot), exist_ok=True)
+        Path(out_csv_by_robot).parent.mkdir(parents=True, exist_ok=True)
         with open(out_csv_by_robot, "w", newline="") as f:
             w = csv.writer(f)
-            # ヘッダ (robot 列を追加)
-            w.writerow(["robot", "idx", "feature", "mae", "rmse",
-                        "targ_abs_mean", "mae_rate", "rmse_rate"])
-            
-            # per_robot_err と per_robot_targ のキーが一致している前提でループ
-            for robot in per_robot_err.keys():
-                errs = per_robot_err.get(robot, [])
-                targs = per_robot_targ.get(robot, []) # <--- ロボットごとの真値を取得
-
-                if not errs or not targs:
-                    continue
-
-                Ei = torch.cat(errs, dim=0)  # [Mi, D] (誤差)
-                Ti = torch.cat(targs, dim=0) # [Mi, D] (真値) <--- 追加
-
-                if Ei.numel() == 0:
-                    continue
-                
-                # ロボットごとの MAE/RMSE
-                if reduction == "sum":
-                    mae_i = Ei.abs().sum(dim=0).numpy()
-                    rmse_i = torch.sqrt((Ei ** 2).sum(dim=0)).numpy()
-                else:
-                    mae_i = Ei.abs().mean(dim=0).numpy()
-                    rmse_i = torch.sqrt((Ei ** 2).mean(dim=0)).numpy()
-                
-                # [変更 1] ロボットごとの分母（|Targ|）を計算
-                targ_abs_mean_i = (Ti.abs().mean(dim=0) + 1e-9).numpy()
-                targ_abs_mean_i = np.where(np.isfinite(targ_abs_mean_i), targ_abs_mean_i, 1e-9)
-
-                # [変更 2] ロボットごとの分母で誤差率を計算
-                mae_rate_i = mae_i / targ_abs_mean_i
-                rmse_rate_i = rmse_i / targ_abs_mean_i
-
+            w.writerow(["robot", "idx", "feature", "mae", "rmse", "targ_abs_mean", "mae_rate"])
+            for rname, errs in per_robot_err.items():
+                Ei, Ti = torch.cat(errs, dim=0), torch.cat(per_robot_targ[rname], dim=0)
+                mae_i = Ei.abs().mean(dim=0).numpy()
+                rmse_i = torch.sqrt((Ei**2).mean(dim=0)).numpy()
+                tm_i = Ti.abs().mean(dim=0).clamp(min=1e-9).numpy()
                 for j in range(D):
-                    w.writerow([
-                        robot, j, feat_names[j],
-                        float(mae_i[j]), float(rmse_i[j]),
-                        float(targ_abs_mean_i[j]), # [変更 3] ロボットごとの分母を書き込む
-                        float(mae_rate_i[j]), float(rmse_rate_i[j]),
-                    ])
+                    w.writerow([rname, j, feat_names[j], mae_i[j], rmse_i[j], tm_i[j], mae_i[j]/tm_i[j]])

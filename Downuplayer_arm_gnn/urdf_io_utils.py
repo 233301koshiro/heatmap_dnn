@@ -5,8 +5,8 @@ from pathlib import Path
 from glob import glob
 from typing import List, Dict
 import pandas as pd
-from urdf_core import load_urdf_any, urdf_to_graph, graph_features, urdf_to_feature_graph
-from urdf_viz import draw_graph_png
+from urdf_core_utils import load_urdf_any, urdf_to_graph, graph_features, urdf_to_feature_graph
+from urdf_viz_utils import draw_graph_png
 
 def collect_urdf_paths(dir_path: str, exts: tuple = (".urdf", ".xml")) -> List[str]:
     """

@@ -255,9 +255,11 @@ class MaskedTreeAutoencoder(nn.Module):
         # Decoder
         x_hat = self.decoder(mask_flag, h_enc, ei)
         # 軸成分(9,10,11と仮定)を正規化。イプシロンを入れてゼロ割を防ぐ
-        #axis_pred = x_hat[:, 9:12]
-        #axis_norm = axis_pred / (axis_pred.norm(dim=1, keepdim=True) + 1e-9)
-        #x_hat = torch.cat([x_hat[:, :9], axis_norm, x_hat[:, 12:]], dim=1)
+        #feature_names: ['deg', 'depth', 'mass', 'jtype_is_revolute', 'jtype_is_continuous', 'jtype_is_prismatic', 'jtype_is_fixed', 'axis_x', 'axis_y', 'axis_z', 'origin_x', 'origin_y', 'origin_z']
+        #のためaxisは7,8,9
+        axis_pred = x_hat[:, 7:10]
+        axis_norm = axis_pred / (axis_pred.norm(dim=1, keepdim=True) + 1e-9)
+        x_hat = torch.cat([x_hat[:, :9], axis_norm, x_hat[:, 12:]], dim=1)
         out = {"x_hat": x_hat, "mask_flag": mask_flag, "node_context": h_enc}
         if recon_only_masked and (mask_idx is not None) and (mask_idx.numel() > 0):
             out["recon_target_idx"] = mask_idx
@@ -274,6 +276,7 @@ class TrainCfg:
     lr: float = 1e-3
     weight_decay: float = 1e-4
     epochs: int = 1
+    loss_weight: Optional[List[float]] = None  # 各特徴量ごとの損失重み付けリスト
     recon_only_masked: bool = True
     mask_strategy: str = "none"
     verbose: bool = True            # 詳細ログを出すか
@@ -286,9 +289,36 @@ def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict) ->
     """
     if "recon_target_idx" in out:
         idx = out["recon_target_idx"]
-        return F.l1_loss(x_hat[idx], x_true[idx])  # reduction='mean' がデフォ
+        # TODO: マスク時もコサイン類似度損失を使うか確認
+        return F.l1_loss(x_hat[idx], x_true[idx])  # 現在はマスク時L1のまま
     else:
-        return F.l1_loss(x_hat, x_true)
+        if False :
+            return F.l1_loss(x_hat, x_true)
+        else :
+            # 安定化のための微小値
+            eps = 1e-12 
+            
+            # --- スプリットを (axis_* が 7,8,9 列目になるよう) 修正 ---
+            # 特徴量 [0:7] (deg, depth, mass, jtype*4)
+            x_hat_1, x_true_1 = x_hat[:, :7], x_true[:, :7]
+            # 特徴量 [7:10] (axis_x, axis_y, axis_z)
+            x_hat_2, x_true_2 = x_hat[:, 7:10], x_true[:, 7:10]
+            # 特徴量 [10:] (origin_x, origin_y, origin_z)
+            x_hat_3, x_true_3 = x_hat[:, 10:], x_true[:, 10:]
+            
+            # L1 Loss (非ベクトル部分)
+            loss_1 = F.l1_loss(x_hat_1, x_true_1)
+            loss_3 = F.l1_loss(x_hat_3, x_true_3)
+            
+            # --- F.normalize に eps を指定してゼロ除算を回避 ---
+            x_hat_2n = F.normalize(x_hat_2, p=2, dim=1, eps=eps)
+            x_true_2n = F.normalize(x_true_2, p=2, dim=1, eps=eps)
+            
+            # コサイン類似度損失 (1 - cos_sim)
+            dot_product = torch.sum(x_hat_2n * x_true_2n, dim=1).mean()
+            loss_dir = 1 - dot_product
+            
+            return loss_1 + loss_3 + loss_dir
 
 
 def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
@@ -301,6 +331,12 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
             weight_decay=getattr(cfg, "weight_decay", 1e-4),
         )
 
+    # 損失重みの準備 (ループ外で1回だけ行う)
+    w_tensor = None
+    if cfg.loss_weight:
+         # [1, D] の形状にしておけば、後で自動的にブロードキャストされる
+         w_tensor = torch.tensor(cfg.loss_weight, device=device).unsqueeze(0)
+
     total_loss = 0.0
     for step, data in enumerate(loader, start=1):
         data = data.to(device)
@@ -308,27 +344,29 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
             data = apply_noise_augmentation(data)
         model._opt.zero_grad(set_to_none=True)
 
-        #out  = model(data)
-        #pred = out[0] if isinstance(out, (tuple, list)) else out
-        #loss = ((pred - data.x) ** 2).mean()
-        # --- マスク index の作成（'one' なら k=1, 'k' なら cfg.mask_k、それ以外は None） ---
+        # --- マスク index の作成 ---
         mask_idx = None
         if cfg.recon_only_masked and (cfg.mask_strategy in ("one", "k")):
             k = 1 if cfg.mask_strategy == "one" else max(1, int(cfg.mask_k))
-            if hasattr(data, "ptr"):  # 各グラフから k ノードずつ無作為抽出
-                mask_idx = _pick_mask_indices_from_batch(data, k=k)  # CPU LongTensor
+            if hasattr(data, "ptr"):
+                mask_idx = _pick_mask_indices_from_batch(data, k=k)
                 mask_idx = mask_idx.to(device)
 
-        # --- forward（マスクをモデルへ渡し、再現対象 index を out に埋めてもらう） ---
+        # --- forward ---
         pred, out = model(data, mask_idx=mask_idx, recon_only_masked=cfg.recon_only_masked)
-        # --- loss は masked のみで計算（recon_target_idx があればそこだけ） ---
+        
+        # --- loss ---
+        # ここで w_tensor を渡す
+        #loss = loss_reconstruction(pred, data.x, out, weight=w_tensor)
+        
+        #aixisのlossではweightを使っていないのでへんこう
         loss = loss_reconstruction(pred, data.x, out)
+
         loss.backward()
         model._opt.step()
 
         total_loss += float(loss.item())
 
-        # ▼ ここで間引き出力（1 step目 / 最後 / 指定間隔）
         if cfg.verbose and log_every_steps:
             if (step == 1) or (step == len(loader)) or (step % log_every_steps == 0):
                 print(f"[loss] {float(loss.item()):.6f}  | graphs={data.num_graphs} nodes={data.num_nodes} edges={data.num_edges}")
@@ -340,6 +378,12 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
 def eval_loss(model, loader, device, recon_only_masked: bool = True, mask_strategy: str = "none", log_every_steps: int = 0, verbose: bool = False):
     model.eval()
     total = 0.0
+    # --- loss_weight の作成 ---
+    cfg = getattr(model, "_cfg", None)
+    w_tensor = None
+    if cfg and cfg.loss_weight:
+        w_tensor = torch.tensor(cfg.loss_weight, device=device).unsqueeze(0)
+
     for step, data in enumerate(loader, start=1):
         data = data.to(device)
         #out  = model(data)
@@ -353,6 +397,7 @@ def eval_loss(model, loader, device, recon_only_masked: bool = True, mask_strate
                 mask_idx = _pick_mask_indices_from_batch(data, k=k).to(device)
 
         pred, out = model(data, mask_idx=mask_idx, recon_only_masked=recon_only_masked)
+        #loss = loss_reconstruction(pred, data.x, out, weight=w_tensor)
         loss = loss_reconstruction(pred, data.x, out)
         total += float(loss.item())
 
