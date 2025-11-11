@@ -1,3 +1,8 @@
+#gnnの使い方
+```
+python new_debug.py --merge-dir ./merge_joint_robots --epochs 200 --batch-size 16 --loss-weight '0.1,0.1,0.1,0.1,0.1,0.1,0.1,10,10,10,10,10,10' --mask-mode none --mask-k 0 --seed 42 --save-dir ./checkpoints --log-csv ./checkpoints/training_log.csv --metrics-csv ./checkpoints/test_metrics.csv
+```
+
 # headmap dnn
 
 ## 準備
