@@ -9,7 +9,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import GINConv, AttentionalAggregation
 from torch_scatter import scatter_mean
 import numpy as np
-from urdf_to_graph_utilis import debug_edge_index, print_step_header, print_step_footer
+from urdf_print_debug_utils import debug_edge_index, print_step_header, print_step_footer
 def _vprint(enabled: bool, *args, **kwargs):
     if enabled:
         print(*args, **kwargs)
@@ -253,13 +253,46 @@ class MaskedTreeAutoencoder(nn.Module):
         h_enc = self.encoder(enc_in, ei)                # [N, hidden]
 
         # Decoder
-        x_hat = self.decoder(mask_flag, h_enc, ei)
+        x_hat_raw = self.decoder(mask_flag, h_enc, ei)
+
+        """
+        loss_recと合わせて二重に正規化しないように，ここでは正規化しない
         # 軸成分(9,10,11と仮定)を正規化。イプシロンを入れてゼロ割を防ぐ
         #feature_names: ['deg', 'depth', 'mass', 'jtype_is_revolute', 'jtype_is_continuous', 'jtype_is_prismatic', 'jtype_is_fixed', 'axis_x', 'axis_y', 'axis_z', 'origin_x', 'origin_y', 'origin_z']
         #のためaxisは7,8,9
         axis_pred = x_hat[:, 7:10]
         axis_norm = axis_pred / (axis_pred.norm(dim=1, keepdim=True) + 1e-9)
-        x_hat = torch.cat([x_hat[:, :9], axis_norm, x_hat[:, 12:]], dim=1)
+        # [0:7] -> deg から j_fix (7列)
+        # [7:10] -> axis_norm (3列)
+        # [10:13] -> origin_x から origin_z (3列)
+        x_hat = torch.cat([
+            x_hat[:, :7],   # 0から6 (deg, depth, mass, jtype...)
+            axis_norm,      # 7から9 (正規化済み axis)
+            x_hat[:, 10:]   # 10から12 (origin_x, origin_y, origin_z)
+        ], dim=1)        
+        out = {"x_hat": x_hat, "mask_flag": mask_flag, "node_context": h_enc}
+        if recon_only_masked and (mask_idx is not None) and (mask_idx.numel() > 0):
+            out["recon_target_idx"] = mask_idx
+        return x_hat, 
+        """
+
+        # L1損失(回帰)で評価する特徴量 (deg, depth, mass, origin_x/y/z)
+        # にのみ sigmoid を適用し、[0, 1] の範囲にマッピングする
+        x_hat_reg1 = torch.sigmoid(x_hat_raw[:, 0:3])   # deg, depth, mass
+        x_hat_reg2 = torch.sigmoid(x_hat_raw[:, 10:13]) # origin_x, origin_y, origin_z
+
+        # CE損失(分類)とCosine損失(方向)で評価する特徴量は、生のロジットのまま
+        x_hat_cls  = x_hat_raw[:, 3:7]  # jtype_...
+        x_hat_axis = x_hat_raw[:, 7:10] # axis_x, axis_y, axis_z
+
+        # テンソルを元の [B, 13] の順序に再構築する
+        x_hat = torch.cat([
+            x_hat_reg1,   # 0-2 (Sigmoid)
+            x_hat_cls,    # 3-6 (Raw)
+            x_hat_axis,   # 7-9 (Raw)
+            x_hat_reg2    # 10-12 (Sigmoid)
+        ], dim=1)
+
         out = {"x_hat": x_hat, "mask_flag": mask_flag, "node_context": h_enc}
         if recon_only_masked and (mask_idx is not None) and (mask_idx.numel() > 0):
             out["recon_target_idx"] = mask_idx
@@ -283,42 +316,109 @@ class TrainCfg:
     log_interval: int = 0           # バッチ内ログを出すステップ間隔(0で出さない)
     mask_k: int = 1                # 各グラフからマスクするノード数
 
-def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict) -> torch.Tensor:
+#def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict) -> torch.Tensor:#loss_weightなし
+def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,loss_weight: Optional[torch.Tensor] = None) -> torch.Tensor:#loss_weight有
     """
-    MAE（L1 Loss）。recon_target_idx がある場合はマスク行のみで計算。
+    再構成損失を計算する。
+    各特徴量ごとに適切な損失関数を適用し、必要に応じてマスクを考慮する。
+    Args:
+        x_hat (torch.Tensor): モデルの再構成出力 [B, D]。
+        x_true (torch.Tensor): 正解データ [B, D]。
+        out (dict): モデルの追加出力情報（マスクインデックスなど）。
+    Returns:
+        torch.Tensor: 平均再構成損失（スカラー）。
+    なお、各特徴量の損失関数は以下の通り：
+
     """
+    B, D = x_hat.shape# バッチサイズと特徴量次元数を予測値の形状から取得
+    target_mask = torch.ones(B, D, device=x_hat.device)# 再構成損失を計算する際のマスクを初期化（全て1で初期化）
     if "recon_target_idx" in out:
         idx = out["recon_target_idx"]
-        # TODO: マスク時もコサイン類似度損失を使うか確認
-        return F.l1_loss(x_hat[idx], x_true[idx])  # 現在はマスク時L1のまま
-    else:
-        if False :
-            return F.l1_loss(x_hat, x_true)
-        else :
-            # 安定化のための微小値
-            eps = 1e-12 
-            
-            # --- スプリットを (axis_* が 7,8,9 列目になるよう) 修正 ---
-            # 特徴量 [0:7] (deg, depth, mass, jtype*4)
-            x_hat_1, x_true_1 = x_hat[:, :7], x_true[:, :7]
-            # 特徴量 [7:10] (axis_x, axis_y, axis_z)
-            x_hat_2, x_true_2 = x_hat[:, 7:10], x_true[:, 7:10]
-            # 特徴量 [10:] (origin_x, origin_y, origin_z)
-            x_hat_3, x_true_3 = x_hat[:, 10:], x_true[:, 10:]
-            
-            # L1 Loss (非ベクトル部分)
-            loss_1 = F.l1_loss(x_hat_1, x_true_1)
-            loss_3 = F.l1_loss(x_hat_3, x_true_3)
-            
-            # --- F.normalize に eps を指定してゼロ除算を回避 ---
-            x_hat_2n = F.normalize(x_hat_2, p=2, dim=1, eps=eps)
-            x_true_2n = F.normalize(x_true_2, p=2, dim=1, eps=eps)
-            
-            # コサイン類似度損失 (1 - cos_sim)
-            dot_product = torch.sum(x_hat_2n * x_true_2n, dim=1).mean()
-            loss_dir = 1 - dot_product
-            
-            return loss_1 + loss_3 + loss_dir
+        target_mask[:, idx] = 0.0    # マスクされたノードの特徴量に対して損失を計算しないようにマスクを設定
+
+    # feature indices
+    deg_index = 0
+    depth_index = 1
+    mass_idx = 2
+    #joint_idx_start, joint_idx_end = 3, 8
+    joint_idx_start, joint_idx_end = 3, 6#ほんとは6種類だけどdatasetに出てこないからrevolute,continuous,prismatic,fixedの4種類に限定
+    rotate_joint_idx = 3#revoluteジョイントのindex
+    axis_idx_start, axis_idx_end = 7, 9
+    origin_idx_start, origin_idx_end = 10, 12
+
+    #moveable_idx = 15
+    #rot_width_idx = 16
+    #rot_lower_idx = 17
+    #rot_upper_idx = 18
+
+    # 各特徴ごとに同じshape (B, feature_dim) の損失を求める
+    #dataloaderはバッチ処理の際に複数のグラフを縦に連結する
+    #なのでBはバッチサイズではなく，バッチ内の全ノード数になる
+    losses = torch.zeros_like(x_hat)
+
+    #deg,depth,massはスカラーなのでL1loss(MAE:平均絶対誤差)
+    losses[:, deg_index] = F.l1_loss(x_hat[:, deg_index], x_true[:, deg_index], reduction='none')    
+    losses[:, depth_index] = F.l1_loss(x_hat[:, depth_index], x_true[:, depth_index], reduction='none')
+    losses[:, mass_idx] = F.l1_loss(x_hat[:, mass_idx], x_true[:, mass_idx], reduction='none')
+
+    #jointの種類はone-hotなのでcross-entropy loss(分類問題に使うloss.scoreを確率に正規化してから使うlossを計算する)
+    losses[:, joint_idx_start:joint_idx_end+1] = F.cross_entropy(
+        x_hat[:, joint_idx_start:joint_idx_end+1],
+        x_true[:, joint_idx_start:joint_idx_end+1].argmax(dim=1),#one-hotの1がindxの何番目かを取得
+        reduction='none'
+    ).unsqueeze(1).expand(-1, joint_idx_end - joint_idx_start + 1)
+    #cross-entropy-lossは各ノードごとに1つの値しか持たないが，それをjoint_idx_startからjoint_idx_endまでの各特徴量に同じ値を入れるためにunsqueezeとexpandを使っている
+
+    # cosine sim.が1になるようにする．(√(x1^2 + x2^2 + x3^2) = 1)
+    axis_vec_hat = F.normalize(x_hat[:, axis_idx_start:axis_idx_end+1], eps=1e-6)
+    axis_vec_true = F.normalize(x_true[:, axis_idx_start:axis_idx_end+1], eps=1e-6)
+    
+    # cos類似度 (内積) を計算。形状は [B] となる
+    # (内積=|a|・|b|・cosθ, normalize済みなので |a|=|b|=1 → 内積=cosθ)
+    cosine_sim = (axis_vec_hat * axis_vec_true).sum(dim=1)
+
+    # 1-cos類似度 を損失とする。形状は [B]
+    # (誤差θ=0 のとき 1-cos(0) = 0 となり損失が最小になる)
+    cosine_loss = 1 - cosine_sim
+
+    # [B] の損失を [B, 1] に変形
+    cosine_loss_unsqueezed = cosine_loss.unsqueeze(1)
+
+    # [B, 1] を [B, 3] (axisの列数) に拡張して代入する
+    num_axis_dims = axis_idx_end - axis_idx_start + 1
+    losses[:, axis_idx_start:axis_idx_end+1] = cosine_loss_unsqueezed.expand(-1, num_axis_dims)
+    
+ 
+    # 回転軸を持たないジョイントの場合、軸の損失を0にする
+    # (※注: rotate_joint_idx > 0 は「回転関節」です)
+    fixed_joint_idx= 6#fixedジョイントのindex
+    losses[:, axis_idx_start:axis_idx_end+1][x_true[:, fixed_joint_idx] > 0] = 0.
+
+
+    # origin (L1損失)
+    losses[:, origin_idx_start:origin_idx_end+1] = F.l1_loss(
+        x_hat[:, origin_idx_start:origin_idx_end+1], x_true[:, origin_idx_start:origin_idx_end+1], reduction='none'
+    )
+
+    #使ってない特徴量の損失計算はコメントアウト
+    #losses[:, moveable_idx] = F.l1_loss(x_hat[:, moveable_idx], x_true[:, moveable_idx], reduction='none')
+    #losses[:, rot_width_idx] = F.l1_loss(x_hat[:, rot_width_idx], x_true[:, rot_width_idx], reduction='none')
+    #losses[:, rot_lower_idx] = F.l1_loss(x_hat[:, rot_lower_idx], x_true[:, rot_lower_idx], reduction='none')
+    #losses[:, rot_upper_idx] = F.l1_loss(x_hat[:, rot_upper_idx], x_true[:, rot_upper_idx], reduction='none')
+
+    masked_loss_tensor = losses * target_mask  # マスク適用
+    # マスク適用 & 平均
+    # 2. 特徴量ごとの重みを適用
+    if loss_weight is not None:
+        # loss_weight (shape [D]) が [B, D] にブロードキャスト（自動拡張）されて乗算される
+        if loss_weight.shape[0] == D:
+            masked_loss_tensor = masked_loss_tensor * loss_weight
+        else:
+            # 渡された重みの数と特徴量の数が合わない場合は警告
+            print(f"[WARN] loss_weight size ({loss_weight.shape[0]}) != feature dimension ({D}). Weight ignored.")
+
+    # 3. 最終的な平均
+    return masked_loss_tensor.mean()
 
 
 def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
@@ -335,15 +435,18 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
     w_tensor = None
     if cfg.loss_weight:
          # [1, D] の形状にしておけば、後で自動的にブロードキャストされる
-         w_tensor = torch.tensor(cfg.loss_weight, device=device).unsqueeze(0)
+         w_tensor = torch.tensor(cfg.loss_weight, device=device)
 
     total_loss = 0.0
     for step, data in enumerate(loader, start=1):
         data = data.to(device)
+        """"
+        #まずはクリーンなデータで学習できるか
         if model.training:
             data = apply_noise_augmentation(data)
+        
+        """
         model._opt.zero_grad(set_to_none=True)
-
         # --- マスク index の作成 ---
         mask_idx = None
         if cfg.recon_only_masked and (cfg.mask_strategy in ("one", "k")):
@@ -357,10 +460,10 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
         
         # --- loss ---
         # ここで w_tensor を渡す
-        #loss = loss_reconstruction(pred, data.x, out, weight=w_tensor)
+        loss = loss_reconstruction(pred, data.x, out, loss_weight=w_tensor)
         
         #aixisのlossではweightを使っていないのでへんこう
-        loss = loss_reconstruction(pred, data.x, out)
+        #loss = loss_reconstruction(pred, data.x, out)
 
         loss.backward()
         model._opt.step()
@@ -382,7 +485,7 @@ def eval_loss(model, loader, device, recon_only_masked: bool = True, mask_strate
     cfg = getattr(model, "_cfg", None)
     w_tensor = None
     if cfg and cfg.loss_weight:
-        w_tensor = torch.tensor(cfg.loss_weight, device=device).unsqueeze(0)
+        w_tensor = torch.tensor(cfg.loss_weight, device=device)
 
     for step, data in enumerate(loader, start=1):
         data = data.to(device)
@@ -397,8 +500,8 @@ def eval_loss(model, loader, device, recon_only_masked: bool = True, mask_strate
                 mask_idx = _pick_mask_indices_from_batch(data, k=k).to(device)
 
         pred, out = model(data, mask_idx=mask_idx, recon_only_masked=recon_only_masked)
-        #loss = loss_reconstruction(pred, data.x, out, weight=w_tensor)
-        loss = loss_reconstruction(pred, data.x, out)
+        loss = loss_reconstruction(pred, data.x, out, loss_weight=w_tensor)#  weightを使う場合
+        #loss = loss_reconstruction(pred, data.x, out)#weightを使っていない場合
         total += float(loss.item())
 
         # 評価時は静かに。必要なら verbose で間引きログ

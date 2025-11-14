@@ -159,6 +159,8 @@ def main():
     print("[check] num_features:", dataset[0].num_node_features)
     print("[check] feature_names:", feat_names)
 
+    print(f"[check] data_summary (sample 0): {dataset[0]}")
+
     # 生データの統計を表示
     data_stats = compute_feature_mean_std_from_dataset(dataset, population_std=True)
     print_feature_mean_std(data_stats, feature_names=dataset[0].feature_names_disp)
@@ -211,7 +213,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     cfg = TrainCfg(
-        lr=1e-3,
+        lr=1e-4,
         weight_decay=1e-4,
         epochs=args.epochs,
         #コマンドライン引数の文字列をカンマで分割してfloatリストに変換
@@ -327,5 +329,9 @@ if __name__ == "__main__":
 
 #実行コマンド例:
 """
-python new_debug.py --merge-dir ./merge_joint_robots --epochs 100 --batch-size 16 --loss-weight '0.5,0.5,0.5,0.5,0.5,0.5,0.5,1,1,1,1,1,1' --mask-mode none --mask-k 0 --seed 42 --save-dir ./checkpoints --log-csv ./checkpoints/training_log.csv --metrics-csv ./checkpoints/test_metrics.csv
+python new_debug.py --merge-dir ./merge_joint_robots --epochs 100 --batch-size 16 --loss-weight '0.1 ,0.1 ,0.1 ,0.025 ,0.025 ,0.025 ,0.025 ,3.3 ,3.3 ,3.3 ,3.3 ,3.3 ,3.3' --mask-mode none --mask-k 0 --seed 42 --save-dir ./checkpoints --log-csv ./checkpoints/training_log.csv --metrics-csv ./checkpoints/test_metrics.csv
 """
+#loss_weightに関して
+#元はoriginとaxisだけ10のほかすべて0.1だったが，joint_typeやaxis,originなどは複数の特徴量から一つのlossをだしてまたそのlossを複数に転記するため
+#単純な話lossの影響が特徴量数に比例する．
+#つまり4つからなるjoint_typeは1/4の0.025に,3つからなるaxisは1/3の3.3にすることで全体のlossに与える影響を均一化している
