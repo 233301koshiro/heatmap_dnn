@@ -166,8 +166,8 @@ def main():
     print_feature_mean_std(data_stats, feature_names=dataset[0].feature_names_disp)
 
     # 正規化対象カラムの決定 (axisとorigin以外を正規化する例)
-    #exclude_cols = {"origin_x","origin_y","origin_z","axis_x", "axis_y", "axis_z"}
-    exclude_cols = {"axis_x", "axis_y", "axis_z"}
+    exclude_cols = {"origin_x","origin_y","origin_z","axis_x", "axis_y", "axis_z"}
+    #exclude_cols = {"axis_x", "axis_y", "axis_z"}
     z_cols = [i for i, n in enumerate(feat_names) if n not in exclude_cols]
 
     # Min-Max統計の計算
@@ -213,7 +213,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     cfg = TrainCfg(
-        lr=1e-4,
+        lr=1e-3,
         weight_decay=1e-4,
         epochs=args.epochs,
         #コマンドライン引数の文字列をカンマで分割してfloatリストに変換
@@ -296,7 +296,7 @@ def main():
         masked_loss = eval_loss(model, test_loader, device, recon_only_masked=True, mask_strategy=args.mask_mode)
         #print(f"[TEST] Masked({args.mask_mode}) Recon Loss: {masked_loss:.4f}")
 
-    full_loss = eval_loss(model, train_loader, device, recon_only_masked=False)
+    full_loss = eval_loss(model, test_loader, device, recon_only_masked=False)
     print(f"[TEST] Full Recon Loss: {full_loss:.4f}")
 
     # 詳細メトリクス (元スケールでの評価)
@@ -312,7 +312,7 @@ def main():
         # 詳細評価実行
         compute_recon_metrics_origscale(
             model=model,
-            loader=train_loader,
+            loader=test_loader,
             device=device,
             z_stats=stats_mm,  # min/max統計を渡す
             feature_names=dataset[0].feature_names_disp,

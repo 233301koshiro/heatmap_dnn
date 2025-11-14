@@ -208,7 +208,7 @@ class TreeDecoder(nn.Module):
 # =========================================================
 class MaskedTreeAutoencoder(nn.Module):
     def __init__(self, in_dim=19, hidden=128, bottleneck_dim=128,
-                 enc_rounds=5, dec_rounds=5, dropout=0.1,
+                 enc_rounds=10, dec_rounds=10, dropout=0.1,
                  mask_strategy: str = "none"):
         super().__init__()
         self.mask_strategy = mask_strategy
@@ -275,7 +275,7 @@ class MaskedTreeAutoencoder(nn.Module):
             out["recon_target_idx"] = mask_idx
         return x_hat, 
         """
-
+        #上では正規化した真の値と0~1に収まっていない生の予測値を比較していた.よって
         # L1損失(回帰)で評価する特徴量 (deg, depth, mass, origin_x/y/z)
         # にのみ sigmoid を適用し、[0, 1] の範囲にマッピングする
         x_hat_reg1 = torch.sigmoid(x_hat_raw[:, 0:3])   # deg, depth, mass
@@ -440,12 +440,10 @@ def train_one_epoch(model, loader, device, cfg, log_every_steps: int = 0):
     total_loss = 0.0
     for step, data in enumerate(loader, start=1):
         data = data.to(device)
-        """"
-        #まずはクリーンなデータで学習できるか
-        if model.training:
-            data = apply_noise_augmentation(data)
         
-        """
+        #まずはクリーンなデータで学習できるか,なのでノイズ付加はコメントアウト
+        #if model.training:
+        #    data = apply_noise_augmentation(data)
         model._opt.zero_grad(set_to_none=True)
         # --- マスク index の作成 ---
         mask_idx = None
