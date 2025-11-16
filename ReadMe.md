@@ -1,4 +1,4 @@
-#　gnnの使い方
+# gnnの使い方
 ```
 python new_debug.py --merge-dir ./merge_joint_robots --epochs 500 --batch-size 16 --loss-weight '1.0 ,5.0 ,1.0 ,0.25 ,0.25 ,0.25 ,0.25 ,3.33 ,3.33 ,3.33 ,3.33 ,3.33 ,3.33' --mask-mode none --mask-k 0 --seed 42 --save-dir ./checkpoints --log-csv ./checkpoints/training_log.csv --metrics-csv ./checkpoints/test_metrics.csv
 ```
