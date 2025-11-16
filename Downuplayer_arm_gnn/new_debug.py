@@ -391,7 +391,7 @@ if __name__ == "__main__":
 
 #実行コマンド例:
 """
-python new_debug.py --merge-dir ./merge_joint_robots --epochs 100 --batch-size 16 --loss-weight '0.1 ,0.1 ,0.1 ,0.025 ,0.025 ,0.025 ,0.025 ,3.3 ,3.3 ,3.3 ,3.3 ,3.3 ,3.3' --mask-mode none --mask-k 0 --seed 42 --save-dir ./checkpoints --log-csv ./checkpoints/training_log.csv --metrics-csv ./checkpoints/test_metrics.csv
+python new_debug.py --merge-dir ./merge_joint_robots --epochs 500 --batch-size 16 --loss-weight '1.0 ,5.0 ,1.0 ,0.25 ,0.25 ,0.25 ,0.25 ,3.33 ,3.33 ,3.33 ,3.33 ,3.33 ,3.33' --mask-mode none --mask-k 0 --seed 42 --save-dir ./checkpoints --log-csv ./checkpoints/training_log.csv --metrics-csv ./checkpoints/test_metrics.csv
 """
 #loss_weightに関して
 #元はoriginとaxisだけ10のほかすべて0.1だったが，joint_typeやaxis,originなどは複数の特徴量から一つのlossをだしてまたそのlossを複数に転記するため
