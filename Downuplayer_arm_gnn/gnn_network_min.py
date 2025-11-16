@@ -10,6 +10,7 @@ from torch_geometric.nn import GINConv, AttentionalAggregation
 from torch_scatter import scatter_mean
 import numpy as np
 from urdf_print_debug_utils import debug_edge_index, print_step_header, print_step_footer
+
 def _vprint(enabled: bool, *args, **kwargs):
     if enabled:
         print(*args, **kwargs)
@@ -119,6 +120,11 @@ class DownUpLayer(nn.Module):
         # 親→子
         #GINon
         x = self.ln1(F.relu(self.down(x, edge_index) + self.dir_emb[0]))
+
+        #depthｇは親→子のdownパスでのみ正しく伝達される情報であるが
+        #Downuplayerはその直後にupパスを実行し情報を逆流させてしまう
+        #それにより情報が撹拌され，depth情報が薄まってしまう可能性がある
+        #との指摘をgeminiから
         # 子→親
         rev = edge_index[[1, 0]]
         #シンプルに
@@ -147,7 +153,7 @@ def root_pool(x: torch.Tensor, edge_index: torch.Tensor, batch: torch.Tensor, ro
 # Encoder：各ノード独立の in_proj → DownUpLayer×K
 # =========================================================
 class TreeEncoder(nn.Module):
-    def __init__(self, in_dim: int, hidden: int = 128, num_rounds: int = 2, dropout: float = 0.1, bottleneck_dim: int = 128):
+    def __init__(self, in_dim: int, hidden: int = 128, num_rounds: int = 1, dropout: float = 0.1, bottleneck_dim: int = 128):
         super().__init__()
         self.in_proj = mlp([in_dim, bottleneck_dim, hidden], dropout=dropout)
         self.layers = nn.ModuleList([
@@ -165,8 +171,8 @@ class TreeEncoder(nn.Module):
 # Decoder：anchor/mask_flag/node_context を結合 → DownUpLayer×K → out_proj
 # =========================================================
 class TreeDecoder(nn.Module):
-    def __init__(self, hidden: int = 128, num_rounds: int = 2,
-                 dropout: float = 0.1, out_dim: int = 19, bottleneck_dim: int = 128,
+    def __init__(self, hidden: int = 128, num_rounds: int = 1,
+                 dropout: float = 0.1, out_dim: int = 13, bottleneck_dim: int = 128,
                  use_mask_flag: bool = False):
         super().__init__()
         self.hidden = hidden
@@ -180,9 +186,7 @@ class TreeDecoder(nn.Module):
             DownUpLayer(hidden, bottleneck_dim=bottleneck_dim, dropout=dropout)
             for _ in range(num_rounds)
         ])
-        #mlpの第二引数に16を渡しているのは，中間層の次元数を16に設定しているため
-        #つまり16次元になるのは
-        self.out_proj = mlp([hidden, 16, out_dim], dropout=dropout)
+        self.out_proj = mlp([hidden, bottleneck_dim, out_dim], dropout=dropout)
 
     def forward(self,
                 mask_flag: Optional[torch.Tensor],    # [N,1] or None
@@ -195,9 +199,11 @@ class TreeDecoder(nn.Module):
         else:
             h_in = node_context
         h = self.in_proj(h_in)
-        # DownUpLayer を回す*2
-        for layer in self.layers:
-            h = layer(h, edge_index)
+
+        #Decoderでgnnレイヤーを使わないとのご指摘
+        # DownUpLayer を回す
+        #for layer in self.layers:
+            #h = layer(h, edge_index)
         
         # 出力投影[nondes_total,128]
         return self.out_proj(h)
@@ -208,7 +214,7 @@ class TreeDecoder(nn.Module):
 # =========================================================
 class MaskedTreeAutoencoder(nn.Module):
     def __init__(self, in_dim=19, hidden=128, bottleneck_dim=128,
-                 enc_rounds=10, dec_rounds=10, dropout=0.1,
+                 enc_rounds=1, dec_rounds=1, dropout=0.1,
                  mask_strategy: str = "none"):
         super().__init__()
         self.mask_strategy = mask_strategy
@@ -232,8 +238,8 @@ class MaskedTreeAutoencoder(nn.Module):
             if self._cfg.verbose and self._cfg.log_interval:
                 # training中かつ指定間隔でだけ出す
                 if self.training and (self._forward_calls % self._cfg.log_interval == 0):
-                    N = int(data.num_nodes); F = int(data.num_node_features); E = int(data.num_edges)
-                    print(f"[MaskedTreeAE] forward: AE MODE | N={N}, F={F}, E={E}")
+                    N = int(data.num_nodes); Fdim = int(data.num_node_features); E = int(data.num_edges)
+                    print(f"[MaskedTreeAE] forward: AE MODE | N={N}, F={Fdim}, E={E}")
 
         # 入力構築
         if self.use_mask_flag:
@@ -253,7 +259,7 @@ class MaskedTreeAutoencoder(nn.Module):
         h_enc = self.encoder(enc_in, ei)                # [N, hidden]
 
         # Decoder
-        x_hat_raw = self.decoder(mask_flag, h_enc, ei)
+        x_raw = self.decoder(mask_flag, h_enc, ei)#生の予測値 [N, in_dim]
 
         """
         loss_recと合わせて二重に正規化しないように，ここでは正規化しない
@@ -275,23 +281,22 @@ class MaskedTreeAutoencoder(nn.Module):
             out["recon_target_idx"] = mask_idx
         return x_hat, 
         """
-        #上では正規化した真の値と0~1に収まっていない生の予測値を比較していた.よって
-        # L1損失(回帰)で評価する特徴量 (deg, depth, mass, origin_x/y/z)
-        # にのみ sigmoid を適用し、[0, 1] の範囲にマッピングする
-        x_hat_reg1 = torch.sigmoid(x_hat_raw[:, 0:3])   # deg, depth, mass
-        x_hat_reg2 = torch.sigmoid(x_hat_raw[:, 10:13]) # origin_x, origin_y, origin_z
 
-        # CE損失(分類)とCosine損失(方向)で評価する特徴量は、生のロジットのまま
-        x_hat_cls  = x_hat_raw[:, 3:7]  # jtype_...
-        x_hat_axis = x_hat_raw[:, 7:10] # axis_x, axis_y, axis_z
+        # === unit axis をここで一元的に作る ===
+        axis_norm = F.normalize(x_raw[:, 7:10], dim=-1, eps=1e-6)
 
-        # テンソルを元の [B, 13] の順序に再構築する
+        # === 出力テンソルを組み立て（評価/損失と整合）===
+        # 0-2: deg, depth, mass は 0..1 に収めたいので sigmoid
+        # 3-6: joint logits はそのまま（CE 用）
+        # 7-9: axis は unit ベクトル
+        # 10-12: origin は“今は”生のまま（min-maxと合わせたいなら後でここだけ sigmoid に切替可）
         x_hat = torch.cat([
-            x_hat_reg1,   # 0-2 (Sigmoid)
-            x_hat_cls,    # 3-6 (Raw)
-            x_hat_axis,   # 7-9 (Raw)
-            x_hat_reg2    # 10-12 (Sigmoid)
+            torch.sigmoid(x_raw[:, 0:3]),   # 0..2
+            x_raw[:, 3:7],                  # 3..6
+            axis_norm,                      # 7..9
+            torch.sigmoid(x_raw[:,10:13]),                # 10..12
         ], dim=1)
+
 
         out = {"x_hat": x_hat, "mask_flag": mask_flag, "node_context": h_enc}
         if recon_only_masked and (mask_idx is not None) and (mask_idx.numel() > 0):
@@ -303,18 +308,16 @@ class MaskedTreeAutoencoder(nn.Module):
 # 学習用コンフィグ / 損失 / ループ
 # =========================================================
 @dataclass
-# 既存の TrainCfg に2項目追加
-@dataclass
 class TrainCfg:
-    lr: float = 1e-3
-    weight_decay: float = 1e-4
-    epochs: int = 1
-    loss_weight: Optional[List[float]] = None  # 各特徴量ごとの損失重み付けリスト
-    recon_only_masked: bool = True
-    mask_strategy: str = "none"
-    verbose: bool = True            # 詳細ログを出すか
-    log_interval: int = 0           # バッチ内ログを出すステップ間隔(0で出さない)
-    mask_k: int = 1                # 各グラフからマスクするノード数
+    lr: float
+    weight_decay: float
+    epochs: int
+    loss_weight: Optional[List[float]] = None  # 各特徴量ごとの損失重み
+    mask_strategy: str = "none"                # マスク戦略
+    mask_k: int = 1                            # strategy='k' のときの k 値
+    recon_only_masked: bool = True             # マスクノードのみ再構成損失を計算するか
+    verbose: bool = True
+    log_interval: int = 20                      # ログ出力間隔（ステップ数）
 
 #def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict) -> torch.Tensor:#loss_weightなし
 def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,loss_weight: Optional[torch.Tensor] = None) -> torch.Tensor:#loss_weight有
@@ -391,8 +394,17 @@ def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,los
  
     # 回転軸を持たないジョイントの場合、軸の損失を0にする
     # (※注: rotate_joint_idx > 0 は「回転関節」です)
-    fixed_joint_idx= 6#fixedジョイントのindex
-    losses[:, axis_idx_start:axis_idx_end+1][x_true[:, fixed_joint_idx] > 0] = 0.
+    # 変更後: revolute or continuous の“ときだけ”軸損失を残し、それ以外は0
+    rev_idx  = 3
+    cont_idx = 4
+    pris_idx = 5
+    fix_idx  = 6
+
+    #revolute, continuous, prismatic の「いずれか」であるか
+    is_moveable_with_axis = (x_true[:, rev_idx] > 0) | (x_true[:, cont_idx] > 0) | (x_true[:, pris_idx] > 0)
+    #上記でないノード（= fixed）だけを True にする
+    mask_axis = ~is_moveable_with_axis
+    losses[:, axis_idx_start:axis_idx_end+1][mask_axis] = 0.
 
 
     # origin (L1損失)

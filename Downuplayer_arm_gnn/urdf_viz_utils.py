@@ -1,6 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
-from urdf_core import layered_layout
+from urdf_core_utils import layered_layout
 
 def draw_graph_png(S: nx.DiGraph, out_png: str, title: str, dpi: int = 100) -> None:
     """

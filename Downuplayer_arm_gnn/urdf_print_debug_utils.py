@@ -366,7 +366,9 @@ def compute_recon_metrics_origscale(
         vp, vt = P[:, [ax, ay, az]], T[:, [ax, ay, az]]
         vp = vp / (vp.norm(dim=1, keepdim=True) + 1e-9)
         vt = vt / (vt.norm(dim=1, keepdim=True) + 1e-9)
-        theta_deg_mean = torch.rad2deg(torch.acos((vp * vt).sum(dim=1).clamp(-1.0, 1.0))).mean().item()
+        #theta_deg_mean = torch.rad2deg(torch.acos((vp * vt).sum(dim=1).clamp(-1.0, 1.0))).mean().item()
+        dot = (vp * vt).sum(dim=1).clamp(-1.0, 1.0)  # ← .abs() を削除し、clampの上限を-1.0に
+        theta_deg_mean = torch.rad2deg(torch.acos(dot)).mean().item()
     except ValueError: pass
 
     mae_all = E.abs().mean(dim=0).numpy() if reduction == "mean" else E.abs().sum(dim=0).numpy()

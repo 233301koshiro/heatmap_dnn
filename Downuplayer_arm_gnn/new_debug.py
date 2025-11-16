@@ -44,7 +44,9 @@ from gnn_network_min import (
     train_one_epoch,
     eval_loss,
 )
-
+from urdf_io_utils import (
+    export_predictions_to_csv
+)
 
 # =========================================================
 # Data Construction
@@ -56,7 +58,7 @@ def build_data(urdf_path: str, drop_feats: list[str] | None = None) -> Data:
     # 2. PyGデータ形式に変換
     d = to_pyg(X_np, edge_index, E_np)
     d.name = urdf_path
-    
+    d.node_names = nodes
     # 現在の特徴量名リスト (urdf_core.FEATURE_NAMES を初期値とする)
     current_names = list(FEATURE_NAMES)
 
@@ -88,7 +90,7 @@ def parse_args():
     # マスク設定
     ap.add_argument("--mask-mode", default="none", choices=["none", "one", "k"],
                     help="評価時のノードマスク戦略")
-    ap.add_argument("--mask-k", type=int, default=1,
+    ap.add_argument("--mask-k", type=int, default=0,
                     help="--mask-mode=k のときのマスク数")
     ap.add_argument("--seed", type=int, default=None, help="乱数シード")
     ap.add_argument("--mask-seed", type=int, default=0, help="評価マスク用の乱数シード")
@@ -109,6 +111,11 @@ def parse_args():
     ap.add_argument("--drop-feats", default="movable,width,jtype_is_planar,jtype_is_floating",
                     help="学習から除外する特徴名（カンマ区切り）")
 
+    # 1つのサンプルにわざと過学習させて致命傷を炙り出すモード
+    # 使い方：--overfit-one 0（=最初のデータ） / --overfit-one 12（インデックス） / --overfit-one path/to/foo.urdf
+    ap.add_argument("--overfit-one", default="", help="単一サンプルに過学習する。index または URDFパス（部分一致可）")
+
+    ap.add_argument("--preds-csv", default="vlisualize_choreonoid_feature.csv", help="予測値CSVの出力先")
     return ap.parse_args()
 
 
@@ -146,12 +153,36 @@ def main():
 
     if not dataset:
         raise RuntimeError("有効なグラフがロードできませんでした。")
+    # -----------------------------------------------------
+    # (optional) 単一サンプルに過学習モード
+    # -----------------------------------------------------
+    if args.overfit_one:
+        key = args.overfit_one.strip()
+        sel: Optional[Data] = None
+        if key.isdigit():
+            idx = int(key)
+            if not (0 <= idx < len(dataset)):
+                raise IndexError(f"--overfit-one index {idx} is out of range (0..{len(dataset)-1})")
+            sel = dataset[idx]
+            args.preds_csv="./checkpoints_overfit/"+args.preds_csv
+        else:
+            # パス or ファイル名の部分一致で探す
+            cand = [d for d in dataset if (key in getattr(d, "name", ""))]
+            if len(cand) == 0:
+                raise FileNotFoundError(f"--overfit-one '{key}' に一致する URDF がありません")
+            if len(cand) > 1:
+                print(f"[WARN] --overfit-one '{key}' 部分一致で {len(cand)} 件ヒット。先頭を採用: {cand[0].name}")
+            sel = cand[0]
+        # データセットを単一サンプルのみに置き換え（train/val/test すべて同一サンプル）
+        print(f"[OVERFIT] target = {getattr(sel, 'name', '(unknown)')}")
+        dataset = [sel]
+
 
     # -----------------------------------------------------
     # 2. 統計計算と正規化
     # -----------------------------------------------------
-    # mass列を1.0に固定（不安定な質量推定を回避）
-    #fix_mass_to_one(dataset)
+    # mass列を1.0に固定(massはmeanが小さいくせにwidthが大きく不安定なため)
+    fix_mass_to_one(dataset)
 
     minimal_dataset_report(dataset)
 
@@ -166,8 +197,12 @@ def main():
     print_feature_mean_std(data_stats, feature_names=dataset[0].feature_names_disp)
 
     # 正規化対象カラムの決定 (axisとorigin以外を正規化する例)
-    exclude_cols = {"origin_x","origin_y","origin_z","axis_x", "axis_y", "axis_z"}
-    #exclude_cols = {"axis_x", "axis_y", "axis_z"}
+    #exclude_cols = {"origin_x","origin_y","origin_z","axis_x", "axis_y", "axis_z"}
+    exclude_cols = {"axis_x", "axis_y", "axis_z"}
+    jtype_names = {n for n in feat_names if n.startswith("jtype_is_")}
+    exclude_cols.update(jtype_names)
+
+    # 上記以外 (deg, depth, mass, origin_x, origin_y, origin_z) を正規化
     z_cols = [i for i, n in enumerate(feat_names) if n not in exclude_cols]
 
     # Min-Max統計の計算
@@ -191,30 +226,46 @@ def main():
     # 3. データセット分割 & Loader作成
     # -----------------------------------------------------
     N = len(dataset)
-    indices = torch.randperm(N).tolist()
-    n_tr = int(0.7 * N)
-    n_va = int(0.2 * N)
-    
-    train_set = [dataset[i] for i in indices[:n_tr]]
-    val_set   = [dataset[i] for i in indices[n_tr:n_tr+n_va]]
-    test_set  = [dataset[i] for i in indices[n_tr+n_va:]]
-
-    bs = min(args.batch_size, max(1, len(train_set)))
-    train_loader = DataLoader(train_set, batch_size=bs, shuffle=True)
-    val_loader   = DataLoader(val_set, batch_size=max(1, len(val_set)), shuffle=False)
-    test_loader  = DataLoader(test_set, batch_size=max(1, len(test_set)), shuffle=False)
-
-    print("\nデータセット内訳")
-    print(f"[dataset] total={N} | train={len(train_set)} val={len(val_set)} test={len(test_set)}")
+    if N == 1:
+        # 単一サンプルで train/val/test 全部同一
+        train_set = [dataset[0]]
+        val_set   = [dataset[0]]
+        test_set  = [dataset[0]]
+        bs = 1
+        train_loader = DataLoader(train_set, batch_size=bs, shuffle=False)
+        val_loader   = DataLoader(val_set,   batch_size=1, shuffle=False)
+        test_loader  = DataLoader(test_set,  batch_size=1, shuffle=False)
+        print("\nデータセット内訳")
+        print(f"[dataset] total=1 | train=1 val=1 test=1 (OVERFIT mode)")
+    else:
+        indices = torch.randperm(N).tolist()
+        n_tr = int(0.7 * N)
+        n_va = int(0.2 * N)
+        train_set = [dataset[i] for i in indices[:n_tr]]
+        val_set   = [dataset[i] for i in indices[n_tr:n_tr+n_va]]
+        test_set  = [dataset[i] for i in indices[n_tr+n_va:]]
+        bs = min(args.batch_size, max(1, len(train_set)))
+        train_loader = DataLoader(train_set, batch_size=bs, shuffle=True)
+        val_loader   = DataLoader(val_set,   batch_size=max(1, len(val_set)), shuffle=False)
+        test_loader  = DataLoader(test_set,  batch_size=max(1, len(test_set)), shuffle=False)
+        print("\nデータセット内訳")
+        print(f"[dataset] total={N} | train={len(train_set)} val={len(val_set)} test={len(test_set)}")
 
     # -----------------------------------------------------
     # 4. モデル構築
     # -----------------------------------------------------
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+    # === Overfit モードなら自動で正則化オフ＆LRアップ ===
+    is_overfit = bool(args.overfit_one)
+    lr = 3e-3 if is_overfit else 1e-4
+    weight_decay = 0.0 if is_overfit else 1e-4
+    dropout = 0.0 if is_overfit else 0.1
+    if is_overfit:
+        print(f"[OVERFIT HP] lr={lr} weight_decay={weight_decay} dropout={dropout}")
+
     cfg = TrainCfg(
-        lr=1e-3,
-        weight_decay=1e-4,
+        lr=lr,
+        weight_decay=weight_decay,
         epochs=args.epochs,
         #コマンドライン引数の文字列をカンマで分割してfloatリストに変換
         loss_weight=[float(w) for w in args.loss_weight.split(",")] if args.loss_weight else None,
@@ -228,9 +279,9 @@ def main():
         in_dim=dataset[0].num_node_features,
         hidden=128,
         bottleneck_dim=128,
-        enc_rounds=8,
-        dec_rounds=8,
-        dropout=0.1,
+        enc_rounds=1,
+        dec_rounds=0,
+        dropout=dropout,
         mask_strategy=cfg.mask_strategy
     ).to(device)
     model._cfg = cfg
@@ -261,7 +312,7 @@ def main():
     for epoch in range(1, args.epochs + 1):
         t0 = time.time()
         train_loss = train_one_epoch(model, train_loader, device, cfg, log_every_steps=args.log_interval)
-        val_loss = eval_loss(model, val_loader, device, recon_only_masked=True, 
+        val_loss = eval_loss(model, val_loader, device, recon_only_masked=False, 
                              mask_strategy=args.mask_mode, verbose=(not args.quiet))
         sec = time.time() - t0
 
@@ -293,7 +344,7 @@ def main():
     # -----------------------------------------------------
     print("\n===== FINAL TEST =====")
     if args.mask_mode != "none":
-        masked_loss = eval_loss(model, test_loader, device, recon_only_masked=True, mask_strategy=args.mask_mode)
+        masked_loss = eval_loss(model, test_loader, device, recon_only_masked=False, mask_strategy=args.mask_mode)
         #print(f"[TEST] Masked({args.mask_mode}) Recon Loss: {masked_loss:.4f}")
 
     full_loss = eval_loss(model, test_loader, device, recon_only_masked=False)
@@ -306,7 +357,7 @@ def main():
             stats=stats_mm,
             names=feat_names,
             snap_onehot=True,
-            unit_axis=True
+            unit_axis=False
         )
         
         # 詳細評価実行
@@ -323,6 +374,17 @@ def main():
             mask_k=args.mask_k,
             mask_seed=args.mask_seed
         )
+        if args.preds_csv:
+            export_predictions_to_csv(
+                model=model,
+                loader=test_loader, # テストデータローダーを使用
+                device=device,
+                stats=stats_mm,     # 正規化に使った統計情報 (main内で定義)
+                feature_names=feat_names, # 特徴量名リスト (main内で定義)
+                output_csv_path=args.preds_csv,
+                mask_mode=args.mask_mode,
+                mask_k=args.mask_k
+            )
 
 if __name__ == "__main__":
     main()
