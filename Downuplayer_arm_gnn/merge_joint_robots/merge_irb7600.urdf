@@ -1,0 +1,203 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+	<xacro:macro name="gz_trans_pos" params="joint_name">
+		<transmission name="${joint_name}_trans">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${joint_name}">
+				<hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+			</joint>
+			<actuator name="${joint_name}_motor">
+				<hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+			</actuator>
+		</transmission>
+	</xacro:macro>
+	<xacro:macro name="gz_trans_vel" params="joint_name">
+		<transmission name="${joint_name}_trans">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${joint_name}">
+				<hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+			</joint>
+			<actuator name="${joint_name}_motor">
+				<hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+			</actuator>
+		</transmission>
+	</xacro:macro>
+	<xacro:macro name="gz_trans_eff" params="joint_name">
+		<transmission name="${joint_name}_trans">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${joint_name}">
+				<hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+			</joint>
+			<actuator name="${joint_name}_motor">
+				<hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+			</actuator>
+		</transmission>
+	</xacro:macro>
+	<link name="base_link">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_base_link.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_base_link.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="1.9999999999999999e-06" />
+			<origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+			<inertia ixx="2e-12" ixy="0" ixz="0" iyy="2e-12" iyz="0" izz="2e-12" />
+		</inertial>
+	</link>
+	<link name="link_1">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_1.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_1.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="1.9999999999999999e-06" />
+			<origin xyz="-1.900000000000e-01 0.000000000000e+00 3.272500000000e-01" />
+			<inertia ixx="2.1418700000000001e-07" ixy="0" ixz="1.24355e-07" iyy="2.8638699999999998e-07" iyz="0" izz="7.2202e-08" />
+		</inertial>
+	</link>
+	<joint name="joint_1" type="revolute">
+		<parent link="base_link" />
+		<child link="link_1" />
+		<origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-3.1415926535897931" upper="3.1415926535897931" velocity="1.7453292519943295" effort="0" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="joint_1" />
+	<link name="link_2">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_2.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_2.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="9.9999999999999995e-07" />
+			<origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+			<inertia ixx="9.9999999999999998e-13" ixy="0" ixz="0" iyy="9.9999999999999998e-13" iyz="0" izz="9.9999999999999998e-13" />
+		</inertial>
+	</link>
+	<joint name="joint_2" type="revolute">
+		<parent link="link_1" />
+		<child link="link_2" />
+		<origin xyz="4.100000000000e-01 0.000000000000e+00 7.800000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+		<axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+		<limit lower="-1.0471975511965976" upper="1.4835298641951802" velocity="1.0471975511965976" effort="0" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="joint_2" />
+	<link name="link_3">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_3.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_3.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="9.9999999999999995e-07" />
+			<origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+			<inertia ixx="9.9999999999999998e-13" ixy="0" ixz="0" iyy="9.9999999999999998e-13" iyz="0" izz="9.9999999999999998e-13" />
+		</inertial>
+	</link>
+	<joint name="joint_3" type="revolute">
+		<parent link="link_2" />
+		<child link="link_3" />
+		<origin xyz="0.000000000000e+00 0.000000000000e+00 1.075000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+		<axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+		<limit lower="-3.1415926535897931" upper="1.0471975511965976" velocity="1.0471975511965976" effort="0" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="joint_3" />
+	<link name="link_4">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_4.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_4.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="9.9999999999999995e-07" />
+			<origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+			<inertia ixx="9.9999999999999998e-13" ixy="0" ixz="0" iyy="9.9999999999999998e-13" iyz="0" izz="9.9999999999999998e-13" />
+		</inertial>
+	</link>
+	<joint name="joint_4" type="revolute">
+		<parent link="link_3" />
+		<child link="link_4" />
+		<origin xyz="0.000000000000e+00 0.000000000000e+00 1.650000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+		<axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+		<limit lower="-5.2359877559829888" upper="5.2359877559829888" velocity="1.7453292519943295" effort="0" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="joint_4" />
+	<link name="link_5">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_5.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_5.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="9.9999999999999995e-07" />
+			<origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+			<inertia ixx="9.9999999999999998e-13" ixy="0" ixz="0" iyy="9.9999999999999998e-13" iyz="0" izz="9.9999999999999998e-13" />
+		</inertial>
+	</link>
+	<joint name="joint_5" type="revolute">
+		<parent link="link_4" />
+		<child link="link_5" />
+		<origin xyz="2.012000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+		<axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+		<limit lower="-1.7453292519943295" upper="1.7453292519943295" velocity="1.7453292519943295" effort="0" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="joint_5" />
+	<link name="link_6">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_6.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_irb7600/_link_6.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="3.0000000000000001e-06" />
+			<origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+			<inertia ixx="3.0000000000000001e-12" ixy="0" ixz="0" iyy="3.0000000000000001e-12" iyz="0" izz="3.0000000000000001e-12" />
+		</inertial>
+	</link>
+	<joint name="joint_6" type="revolute">
+		<parent link="link_5" />
+		<child link="link_6" />
+		<origin xyz="2.500000000000e-01 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+		<axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+		<limit lower="-6.2831853071795862" upper="6.2831853071795862" velocity="3.3161255787892263" effort="0" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="joint_6" />
+</robot>

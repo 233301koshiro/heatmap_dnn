@@ -295,6 +295,7 @@ class MaskedTreeAutoencoder(nn.Module):
             x_raw[:, 3:7],                  # 3..6
             axis_norm,                      # 7..9
             torch.sigmoid(x_raw[:,10:13]),                # 10..12
+            #x_raw[:,10:13]#baxterなどの大きなロボットを扱うときはsigmoidは邪魔らしい(普段はいいけど)
         ], dim=1)
 
 

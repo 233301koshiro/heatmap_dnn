@@ -1,0 +1,228 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+	<xacro:macro name="gz_trans_pos" params="joint_name">
+		<transmission name="${joint_name}_trans">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${joint_name}">
+				<hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+			</joint>
+			<actuator name="${joint_name}_motor">
+				<hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+			</actuator>
+		</transmission>
+	</xacro:macro>
+	<xacro:macro name="gz_trans_vel" params="joint_name">
+		<transmission name="${joint_name}_trans">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${joint_name}">
+				<hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+			</joint>
+			<actuator name="${joint_name}_motor">
+				<hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+			</actuator>
+		</transmission>
+	</xacro:macro>
+	<xacro:macro name="gz_trans_eff" params="joint_name">
+		<transmission name="${joint_name}_trans">
+			<type>transmission_interface/SimpleTransmission</type>
+			<joint name="${joint_name}">
+				<hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+			</joint>
+			<actuator name="${joint_name}_motor">
+				<hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+			</actuator>
+		</transmission>
+	</xacro:macro>
+	<link name="world">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_world.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_world.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="5" />
+			<origin xyz="-1.000000000000e-01 0.000000000000e+00 7.000000000000e-02" />
+			<inertia ixx="0.050000000000000003" ixy="0" ixz="6.9999999999999998e-09" iyy="0.059999999999999998" iyz="0" izz="0.029999999999999999" />
+		</inertial>
+	</link>
+	<link name="iiwa_link_1">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_1.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_1.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="4" />
+			<origin xyz="0.000000000000e+00 -3.000000000000e-02 1.200000000000e-01" />
+			<inertia ixx="0.10000000000000001" ixy="0" ixz="0" iyy="0.089999999999999997" iyz="0" izz="0.02" />
+		</inertial>
+	</link>
+	<joint name="iiwa_joint_1" type="revolute">
+		<parent link="world" />
+		<child link="iiwa_link_1" />
+		<origin xyz="0.000000000000e+00 0.000000000000e+00 1.575000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-2.9670597283903604" upper="2.9670597283903604" velocity="10.000003575641671" effort="300" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="iiwa_joint_1" />
+	<link name="iiwa_link_2">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_2.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_2.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="4" />
+			<origin xyz="3.000000000000e-04 5.900000000000e-02 4.200000000000e-02" />
+			<inertia ixx="0.050000000000000003" ixy="0" ixz="0" iyy="0.017999999999999999" iyz="0" izz="0.043999999999999997" />
+		</inertial>
+	</link>
+	<joint name="iiwa_joint_2" type="revolute">
+		<parent link="iiwa_link_1" />
+		<child link="iiwa_link_2" />
+		<origin xyz="0.000000000000e+00 0.000000000000e+00 2.025000000000e-01" rpy="1.570796326795e+00 2.536328859091e-17 3.141592653590e+00" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-2.0943951023931953" upper="2.0943951023931953" velocity="10.000003575641671" effort="300" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="iiwa_joint_2" />
+	<link name="iiwa_link_3">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_3.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_3.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="3" />
+			<origin xyz="0.000000000000e+00 3.000000000000e-02 1.300000000000e-01" />
+			<inertia ixx="0.080000000000000002" ixy="0" ixz="0" iyy="0.074999999999999997" iyz="0" izz="0.01" />
+		</inertial>
+	</link>
+	<joint name="iiwa_joint_3" type="revolute">
+		<parent link="iiwa_link_2" />
+		<child link="iiwa_link_3" />
+		<origin xyz="-4.622231866529e-33 2.045000000000e-01 -9.081624341434e-17" rpy="1.570796326795e+00 2.536328859091e-17 3.141592653590e+00" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-2.9670597283903604" upper="2.9670597283903604" velocity="10.000003575641671" effort="300" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="iiwa_joint_3" />
+	<link name="iiwa_link_4">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_4.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_4.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="2.7000000000000002" />
+			<origin xyz="0.000000000000e+00 6.700000000000e-02 3.400000000000e-02" />
+			<inertia ixx="0.029999999999999999" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.029000000000000001" />
+		</inertial>
+	</link>
+	<joint name="iiwa_joint_4" type="revolute">
+		<parent link="iiwa_link_3" />
+		<child link="iiwa_link_4" />
+		<origin xyz="-6.162975822039e-33 -1.914024494454e-16 2.155000000000e-01" rpy="1.570796326795e+00 4.930380657631e-32 -2.760854157939e-32" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-2.0943951023931953" upper="2.0943951023931953" velocity="10.000003575641671" effort="300" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="iiwa_joint_4" />
+	<link name="iiwa_link_5">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_5.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_5.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="1.7" />
+			<origin xyz="1.000000000000e-04 2.100000000000e-02 7.600000000000e-02" />
+			<inertia ixx="0.02" ixy="0" ixz="0" iyy="0.017999999999999999" iyz="0" izz="0.0050000000000000001" />
+		</inertial>
+	</link>
+	<joint name="iiwa_joint_5" type="revolute">
+		<parent link="iiwa_link_4" />
+		<child link="iiwa_link_5" />
+		<origin xyz="-6.162975822039e-33 1.845000000000e-01 1.638689184347e-16" rpy="1.570796326795e+00 1.478279226562e-16 3.141592653590e+00" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-2.9670597283903604" upper="2.9670597283903604" velocity="10.000003575641671" effort="300" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="iiwa_joint_5" />
+	<link name="iiwa_link_6">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_6.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_6.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="1.8" />
+			<origin xyz="0.000000000000e+00 6.000000000000e-04 4.000000000000e-04" />
+			<inertia ixx="0.0050000000000000001" ixy="0" ixz="0" iyy="0.0035999999999999999" iyz="0" izz="0.0047000000000000002" />
+		</inertial>
+	</link>
+	<joint name="iiwa_joint_6" type="revolute">
+		<parent link="iiwa_link_5" />
+		<child link="iiwa_link_6" />
+		<origin xyz="-1.232595164408e-32 9.570122472269e-17 2.155000000000e-01" rpy="1.570796326795e+00 9.860761315263e-32 5.673137085427e-32" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-2.0943951023931953" upper="2.0943951023931953" velocity="10.000003575641671" effort="300" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="iiwa_joint_6" />
+	<link name="iiwa_link_7">
+		<visual>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_7.dae" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../meshes/meshes_iiwa14/_iiwa_link_7.stl" />
+			</geometry>
+		</collision>
+		<inertial>
+			<mass value="0.30000100000000002" />
+			<origin xyz="0.000000000000e+00 0.000000000000e+00 2.000010000000e-02" />
+			<inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001" />
+		</inertial>
+	</link>
+	<joint name="iiwa_joint_7" type="revolute">
+		<parent link="iiwa_link_6" />
+		<child link="iiwa_link_7" />
+		<origin xyz="-1.848892746612e-32 8.100000000000e-02 -3.597122599786e-17" rpy="1.570796326795e+00 1.478279226562e-16 3.141592653590e+00" />
+		<axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+		<limit lower="-3.0543261909900767" upper="3.0543261909900767" velocity="10.000003575641671" effort="300" />
+	</joint>
+	<xacro:gz_trans_pos joint_name="iiwa_joint_7" />
+</robot>

@@ -1,236 +1,280 @@
 # -*- coding: utf-8 -*-
-# test.py — 学習済みモデルで任意スプリット（train/val/test/all）を評価し、CSVを test/ に保存
+# test.py
 from __future__ import annotations
-
-import os, csv, random
-from glob import glob
-from typing import List, Tuple
-
+import argparse
+import time
+import random
+import os
+import csv
+import numpy as np
 import torch
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
+from glob import glob
+from typing import List
 
-# ---- Local utils ------------------------------------------------------------
-from urdf_to_graph_utilis import (
-    urdf_to_feature_graph, ExtractConfig, to_pyg,
+# ===== Local Imports =====
+from urdf_core_utils import (
+    urdf_to_feature_graph,
+    to_pyg,
     FEATURE_NAMES,
-    embed_angles_sincos,
-    shorten_feature_names,
-    compute_feature_mean_std_from_dataset, print_feature_mean_std,
-    compute_global_minmax_stats_from_dataset, apply_global_minmax_inplace_to_dataset,
-    print_minmax_stats, dump_normalized_feature_table,
-    minimal_dataset_report, assert_finite_data, scan_nonfinite_features,
-    compute_recon_metrics_origscale, make_postprocess_fn,
+    shorten_feature_names
 )
-
+from urdf_norm_utils import (
+    compute_global_minmax_stats,
+    apply_global_minmax_inplace,
+    create_composite_post_fn,
+    fix_mass_to_one,
+    denorm_batch  # ★追加: 直接逆正規化するために必要
+)
+from urdf_print_debug_utils import (
+    compute_recon_metrics_origscale,
+    compute_feature_mean_std_from_dataset
+)
 from gnn_network_min import (
     MaskedTreeAutoencoder,
+    TrainCfg,
     eval_loss,
 )
+from urdf_io_utils import (
+    export_predictions_to_csv
+)
 
-# -----------------------------------------------------------------------------
-# データ: URDF → PyG（学習で使う列だけに落とす & 角度は sin/cos へ）
-# -----------------------------------------------------------------------------
-def build_data(urdf_path: str, normalize_by: str = "none",
-               drop_feats: List[str] | None = None) -> Data:
-    S, nodes, X, edge_index, E, scale, _ = urdf_to_feature_graph(
-        urdf_path, ExtractConfig(normalize_by=normalize_by)
-    )
-    d = to_pyg(S, nodes, X, edge_index, E)
+# =========================================================
+# Data Loading Helper
+# =========================================================
+def build_data(urdf_path: str, drop_feats: list[str] | None = None) -> Data:
+    S, nodes, X_np, edge_index, E_np, scale, _ = urdf_to_feature_graph(urdf_path)
+    d = to_pyg(X_np, edge_index, E_np)
     d.name = urdf_path
+    d.node_names = nodes
+    
+    current_names = list(FEATURE_NAMES)
+    if drop_feats:
+        drop_set = set(drop_feats)
+        keep_idx = [i for i, n in enumerate(current_names) if n not in drop_set]
+        d.x = d.x[:, keep_idx]
+        d.feature_names = [current_names[i] for i in keep_idx]
+    else:
+        d.feature_names = current_names
 
-    # 角度を sin/cos に展開
-    X2, names2 = embed_angles_sincos(d.x, FEATURE_NAMES)
-
-    # 除外列を適用（movable,width,lower,upper など）
-    drop_feats = drop_feats or []
-    expand_map = {  # lower/upper を sin/cos の2列に展開して指定できるように
-        "lower": {"lower_sin", "lower_cos"},
-        "upper": {"upper_sin", "upper_cos"},
-    }
-    drop_set = set()
-    for k in drop_feats:
-        drop_set |= expand_map.get(k, {k})
-
-    keep_idx = [i for i, n in enumerate(names2) if n not in drop_set]
-    d.x = X2[:, keep_idx]
-
-    kept_names = [names2[i] for i in keep_idx]
-    d.feature_names = kept_names                      # 長い正式名
-    d.feature_names_disp = shorten_feature_names(kept_names)  # 短縮名（表示用）
+    d.feature_names_disp = shorten_feature_names(d.feature_names)
     return d
 
+def load_dataset_from_dir(target_dir, drop_list, keywords=None, exclude=False):
+    paths = sorted([p for p in glob(f"{target_dir}/**/*", recursive=True)
+                    if p.lower().endswith((".urdf", ".xml"))])
+    
+    dataset = []
+    print(f"[INFO] Scanning {len(paths)} files in {target_dir}...")
+    
+    for p in paths:
+        filename = os.path.basename(p)
+        
+        if keywords:
+            hit = any(k in filename for k in keywords)
+            if exclude and hit:
+                continue 
+            if not exclude and not hit:
+                continue 
 
-def split_dataset(ds: List[Data], seed: int | None,
-                  p_tr=0.7, p_va=0.2) -> Tuple[List[Data], List[Data], List[Data]]:
-    idx = list(range(len(ds)))
-    if seed is not None:
-        random.seed(seed)
-    random.shuffle(idx)
-    N = len(ds)
-    n_tr = max(1, int(N * p_tr))
-    n_va = max(1, int(N * p_va))
-    if n_tr + n_va > N - 1:
-        n_va = max(1, N - 1 - n_tr)
-        if n_va < 1:
-            n_tr = max(1, N - 2); n_va = 1
-    n_te = N - n_tr - n_va
-    tr = [ds[i] for i in idx[:n_tr]]
-    va = [ds[i] for i in idx[n_tr:n_tr+n_va]]
-    te = [ds[i] for i in idx[n_tr+n_va:]]
-    return tr, va, te
+        try:
+            d = build_data(p, drop_feats=drop_list)
+            if d.num_nodes > 0:
+                dataset.append(d)
+        except Exception as e:
+            pass
+            
+    return dataset
 
+# =========================================================
+# Diff Export Helper (修正版: tuple対応)
+# =========================================================
+def export_node_diffs(model, loader, device, stats, feature_names, out_path):
+    """
+    各ノードごとに 正解(GT), 予測(Pred), 差分(Diff) を計算してCSVに出力する
+    """
+    model.eval()
+    
+    header = ["urdf_name", "node_idx", "node_name"]
+    for feat in feature_names:
+        header.extend([f"{feat}_GT", f"{feat}_Pred", f"{feat}_Diff"])
+        
+    with torch.no_grad():
+        with open(out_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            
+            for batch in loader:
+                batch = batch.to(device)
+                
+                # 推論
+                out = model(batch)
+                
+                # ★修正: out がタプルの場合のハンドリング
+                if isinstance(out, tuple):
+                    out = out[0]
+                
+                # 逆正規化 (statsを使って直接戻す)
+                x_gt_orig = denorm_batch(batch.x, stats).cpu().numpy()
+                x_pred_orig = denorm_batch(out, stats).cpu().numpy()
+                
+                start_idx = 0
+                for i in range(len(batch.ptr) - 1):
+                    n_nodes = batch.ptr[i+1] - batch.ptr[i]
+                    end_idx = start_idx + n_nodes
+                    
+                    urdf_name = os.path.basename(batch.name[i])
+                    node_names = batch.node_names[i]
+                    
+                    for local_idx in range(n_nodes):
+                        global_idx = start_idx + local_idx
+                        row = [urdf_name, local_idx, node_names[local_idx]]
+                        
+                        for f_idx, _ in enumerate(feature_names):
+                            val_gt = x_gt_orig[global_idx, f_idx]
+                            val_pred = x_pred_orig[global_idx, f_idx]
+                            val_diff = val_pred - val_gt
+                            
+                            row.extend([f"{val_gt:.6f}", f"{val_pred:.6f}", f"{val_diff:.6f}"])
+                        
+                        writer.writerow(row)
+                    
+                    start_idx = end_idx
 
-def load_weights_flex(model: torch.nn.Module, wpath: str):
-    ckpt = torch.load(wpath, map_location="cpu")
-    if isinstance(ckpt, dict) and "model_state" in ckpt:
-        model.load_state_dict(ckpt["model_state"])
-        return ckpt.get("cfg", None)
-    # state_dict 単体として読む
-    model.load_state_dict(ckpt)
-    return None
+    print(f"[INFO] Node-wise diffs exported to: {out_path}")
 
-
+# =========================================================
+# Arguments
+# =========================================================
 def parse_args():
-    import argparse
-    ap = argparse.ArgumentParser(description="Evaluate trained AE and dump CSVs to test/")
-    ap.add_argument("--merge-dir", default="./merge_joint_robots",
-                    help="URDF群ディレクトリ（*.urdf / *.xml を再帰探索）")
-    ap.add_argument("--normalize-by", choices=["none", "mean_edge_len"], default="none",
-                    help="origin距離の平均で正規化（特徴抽出時）。学習には影響しない")
-    ap.add_argument("--drop-feats", default="movable,width,lower,upper",
-                    help="学習に使わない特徴名（カンマ区切り）。lower/upper は sin/cos の2列を両方除外")
-    ap.add_argument("--weights", required=True, help="学習済みモデル（best.pt など）")
-    ap.add_argument("--eval-split", choices=["train", "val", "test", "all"], default="train",
-                    help="どのスプリットで評価するか（seed が同じなら debug.py と同じ分割になる）")
-    ap.add_argument("--seed", type=int, default=42, help="分割の乱数シード")
-    ap.add_argument("--batch-size", type=int, default=16)
-    ap.add_argument("--out-dir", default="test", help="CSV を保存するディレクトリ（自動作成）")
-    ap.add_argument("--preview", action="store_true", help="最初のグラフを表でプレビュー（任意）")
+    ap = argparse.ArgumentParser(description="Test runner for hold-out robots")
+    ap.add_argument("--checkpoint", required=True, help="学習済みモデルのパス (.pt)")
+    ap.add_argument("--train-dir", default="./augmented_dataset", 
+                    help="正規化の基準を作るために使う学習データのディレクトリ")
+    ap.add_argument("--test-dir", default="./merge_joint_robots", 
+                    help="テスト対象(kinova/a1)が入っているディレクトリ")
+    ap.add_argument("--out-dir", default="./test_results", help="結果出力フォルダ")
+    ap.add_argument("--target-robots", default="merge_kinova,merge_a1", 
+                    help="テスト対象にするロボット名のキーワード(カンマ区切り)")
+    ap.add_argument("--drop-feats", default="movable,width,jtype_is_planar,jtype_is_floating",
+                    help="除外する特徴量")
+    ap.add_argument("--hidden", type=int, default=128)
+    ap.add_argument("--bottleneck", type=int, default=128)
+    ap.add_argument("--enc-rounds", type=int, default=1)
+    
     return ap.parse_args()
 
-
+# =========================================================
+# Main
+# =========================================================
 def main():
     args = parse_args()
-
-    # 1) Dataset 構築 ---------------------------------------------------------
-    paths = sorted([p for p in glob(f"{args.merge_dir}/**/*", recursive=True)
-                    if p.lower().endswith((".urdf", ".xml"))])
-    if not paths:
-        raise RuntimeError(f"URDFが見つかりません: {args.merge_dir}")
-
-    drop_list = [s.strip() for s in (args.drop_feats or "").split(",") if s.strip()]
-    dataset: List[Data] = []
-    for p in paths:
-        d = build_data(p, normalize_by=args.normalize_by, drop_feats=drop_list)
-        if d.num_nodes == 0:
-            continue
-        dataset.append(d)
-
-    if not dataset:
-        raise RuntimeError("有効なグラフが0件でした。")
-
-    # 表示用短縮名 / 正式名
-    names_long  = getattr(dataset[0], "feature_names", FEATURE_NAMES)
-    names_short = getattr(dataset[0], "feature_names_disp", shorten_feature_names(names_long))
-    USE_SHORT = True
-    NAMES_DISP = names_short if USE_SHORT else names_long
-
-    # 2) 統計（min-max）を全体から計算 → 適用 ---------------------------------
-    stats_mm = compute_global_minmax_stats_from_dataset(dataset, z_cols=list(range(len(names_long))))
-    apply_global_minmax_inplace_to_dataset(dataset, stats_mm)
-    for d in dataset:
-        assert_finite_data(d, getattr(d, "name", "(no name)"))
-    scan_nonfinite_features(dataset, extreme_abs=1e6)
-
-    # オプション表示
-    minimal_dataset_report(dataset)
-    print_minmax_stats(stats_mm, feature_names=NAMES_DISP)
-    if args.preview:
-        x0 = dataset[0].x.detach().cpu().numpy()
-        dump_normalized_feature_table(
-            x0, stats_mm, max_rows=5, feature_names=NAMES_DISP,
-            cols_per_block=15, show_orig=True
-        )
-
-    # 3) Split & Loader -------------------------------------------------------
-    tr, va, te = split_dataset(dataset, seed=args.seed)
-    split_map = {
-        "train": tr,
-        "val": va,
-        "test": te,
-        "all": dataset,
-    }
-    target_ds = split_map[args.eval_split]
-    bs = min(args.batch_size, max(1, len(target_ds)))
-    loader = DataLoader(target_ds, batch_size=bs, shuffle=False, drop_last=False)
-
-    # 4) Model 構築 & 読み込み ------------------------------------------------
+    os.makedirs(args.out_dir, exist_ok=True)
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    in_dim = target_ds[0].num_node_features
+    drop_list = [s.strip() for s in args.drop_feats.split(",") if s.strip()]
+    target_keywords = [s.strip() for s in args.target_robots.split(",") if s.strip()]
+
+    print("==========================================")
+    print(" 1. 正規化パラメータの計算 (Training Data)")
+    print("==========================================")
+    train_dataset = load_dataset_from_dir(args.train_dir, drop_list)
+    if not train_dataset:
+        raise RuntimeError("学習データが見つかりません。")
+    
+    fix_mass_to_one(train_dataset)
+    
+    feat_names = train_dataset[0].feature_names
+    
+    exclude_cols = {"axis_x", "axis_y", "axis_z"}
+    jtype_names = {n for n in feat_names if n.startswith("jtype_is_")}
+    exclude_cols.update(jtype_names)
+    z_cols = [i for i, n in enumerate(feat_names) if n not in exclude_cols]
+
+    stats_mm = compute_global_minmax_stats(train_dataset, norm_cols=z_cols)
+    print(f"[INFO] Computed stats from {len(train_dataset)} training samples.")
+    del train_dataset
+
+    print("\n==========================================")
+    print(f" 2. テストデータの読み込み ({args.target_robots})")
+    print("==========================================")
+    test_dataset = load_dataset_from_dir(args.test_dir, drop_list, keywords=target_keywords, exclude=False)
+    
+    if not test_dataset:
+        raise RuntimeError(f"テスト対象のロボット ({args.target_robots}) が見つかりませんでした。")
+
+    print(f"[INFO] Found {len(test_dataset)} test robots:")
+    for d in test_dataset:
+        print(f"  - {os.path.basename(d.name)}")
+
+    fix_mass_to_one(test_dataset)
+    apply_global_minmax_inplace(test_dataset, stats_mm)
+    
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+
+    print("\n==========================================")
+    print(" 3. モデルのロードと推論")
+    print("==========================================")
     model = MaskedTreeAutoencoder(
-        in_dim=in_dim,
-        hidden=128,
-        bottleneck_dim=128,
-        enc_rounds=2,
-        dec_rounds=2,
-        dropout=0.1,
-        mask_strategy="none",
+        in_dim=test_dataset[0].num_node_features,
+        hidden=args.hidden,
+        bottleneck_dim=args.bottleneck,
+        enc_rounds=args.enc_rounds,
+        dec_rounds=0,
+        dropout=0.0,
+        mask_strategy="none"
     ).to(device)
-    load_weights_flex(model, args.weights)
+
+    print(f"[INFO] Loading checkpoint: {args.checkpoint}")
+    state = torch.load(args.checkpoint, map_location=device)
+    model.load_state_dict(state)
     model.eval()
 
-    # 5) 正規化空間でのざっくり再構成誤差（ALLノード平均） ----------------------
-    recon_norm = eval_loss(model, loader, device, recon_only_masked=False, verbose=False)
-    print(f"[{args.eval_split}] mean recon (normalized space): {recon_norm:.6f}")
+    full_loss = eval_loss(model, test_loader, device, recon_only_masked=False)
+    print(f"[RESULT] Test Recon Loss (Normalized): {full_loss:.6f}")
 
-    # 6) 逆正規化して per-feature MAE/RMSE を CSV に保存 ------------------------
-    os.makedirs(args.out_dir, exist_ok=True)
-    base = os.path.join(args.out_dir, f"metrics_{args.eval_split}_origscale.csv")
-    post_fn = make_postprocess_fn(
-        names=names_long,    # one-hot/axis の検出は正式名でOK（短縮名でも動く実装）
-        snap_onehot=True,    # 表示専用: joint_type を最大要素にスナップ
-        unit_axis=True       # 表示専用: axis を L2 正規化
+    metrics_csv = os.path.join(args.out_dir, "test_metrics.csv")
+    preds_csv = os.path.join(args.out_dir, "test_predictions.csv")
+    diffs_csv = os.path.join(args.out_dir, "test_node_diffs.csv")
+
+    post_fn = create_composite_post_fn(
+        stats=stats_mm,
+        names=feat_names,
+        snap_onehot=True,
+        unit_axis=False
     )
+
     compute_recon_metrics_origscale(
         model=model,
-        loader=loader,
+        loader=test_loader,
         device=device,
-        z_stats=stats_mm,                   # ← min-max 統計で逆正規化
-        feature_names=NAMES_DISP,           # 表示は短縮名
-        out_csv=base,                       # test/metrics_<split>_origscale.csv
-        out_csv_by_robot=base.replace(".csv", "_by_robot.csv"),
-        use_mask_only=False,
-        postprocess_fn=post_fn,             # 表示用後処理（学習には不影響）
+        z_stats=stats_mm,
+        feature_names=test_dataset[0].feature_names_disp,
+        out_csv=metrics_csv,
+        postprocess_fn=post_fn
     )
 
-    # 7) サマリ & 使用列名を保存 -----------------------------------------------
-    with open(os.path.join(args.out_dir, f"summary_{args.eval_split}.csv"), "w", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(["split", "recon_normalized_mean", "near_zero(thr=1e-3)"])
-        w.writerow([args.eval_split, f"{recon_norm:.8f}", recon_norm < 1e-3])
+    export_predictions_to_csv(
+        model=model,
+        loader=test_loader,
+        device=device,
+        stats=stats_mm,
+        feature_names=feat_names,
+        output_csv_path=preds_csv
+    )
 
-    with open(os.path.join(args.out_dir, "feature_names.csv"), "w", newline="") as f:
-        w = csv.writer(f); w.writerow(["index", "name_display", "name_full"])
-        for i, (sd, sl) in enumerate(zip(NAMES_DISP, names_long)):
-            w.writerow([i, sd, sl])
-
-    print(f"[done] CSVs saved to: {args.out_dir}")
-
+    print("\n[INFO] Exporting node-wise diffs...")
+    export_node_diffs(
+        model=model,
+        loader=test_loader,
+        device=device,
+        stats=stats_mm,
+        feature_names=feat_names,
+        out_path=diffs_csv
+    )
+    
+    print(f"\n[DONE] Results saved to:\n  - {metrics_csv}\n  - {preds_csv}\n  - {diffs_csv}")
 
 if __name__ == "__main__":
     main()
-
-'''
-mkdir -p test
-python test.py \
-  --weights checkpoints_debug/best.pt \
-  --merge-dir ./merge_joint_robots \
-  --normalize-by none \
-  --drop-feats movable,width,lower,upper \
-  --seed 42 \
-  --eval-split train \
-  --out-dir test \
-  --preview
-
-'''

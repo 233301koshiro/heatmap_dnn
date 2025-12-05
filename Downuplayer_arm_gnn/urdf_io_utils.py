@@ -171,84 +171,52 @@ def export_predictions_to_csv(
     model: torch.nn.Module,
     loader: DataLoader,
     device: torch.device,
-    stats: Dict[str, Any], # 逆正規化のための統計情報 (stats_mm)
-    feature_names: List[str], # CSVの列名用
+    stats: Dict[str, Any],
+    feature_names: List[str],
     output_csv_path: str,
     mask_mode: str = "none",
     mask_k: int = 0
 ):
-    """
-    モデルの予測値（逆正規化済み）をCSVファイルとしてエクスポートする。
-    """
     model.eval()
-    all_rows = [] # CSVの行データを格納するリスト
-    
-    # CSVのヘッダーを作成 (識別子 + 特徴量名)
+    all_rows = []
     headers = ["urdf_path", "node_name"] + feature_names
 
-    print(f"\n===== EXPORTING PREDICTIONS =====")
-    print(f"Saving to {output_csv_path}...")
+    # ★ デバッグ用に「この loader 全体で出てくる urdf_path / node_name」を集める
+    urdf_paths_seen = set()
+    node_names_sample = []
 
-    for data in loader:
+    for batch_idx, data in enumerate(loader):
         data = data.to(device)
 
-        if not hasattr(data, 'node_names'):
-             print("[ERROR] 'data.node_names' not found.", file=sys.stderr)
-             return
-
-        # ステップ1の修正が適用されているか確認
-        if not hasattr(data, 'node_names'):
-             print("[ERROR] 'data.node_names' not found. Did you modify 'build_data'?", file=sys.stderr)
-             return # 処理中断
-
-        # (1) 評価時と同様のマスクを（必要なら）作成
-        mask_idx = None
-        if mask_mode in ("one", "k") and hasattr(data, "ptr"):
-            k = 1 if mask_mode == "one" else max(1, int(mask_k))
-            mask_idx = _pick_mask_indices_from_batch(data, k=k).to(device)
-
-        # (2) モデルで予測 (正規化済み)
-        # recon_only_masked=False で全ノードの予測を取得
-        pred_norm, out = model(data, mask_idx=mask_idx, recon_only_masked=False) 
-
-        # (3) 予測値を逆正規化 (元のスケールに戻す)
+        # --- ここは元コードと同じ ---
+        pred_norm, out = model(data, mask_idx=None, recon_only_masked=False)
         pred_orig = denorm_batch(pred_norm, stats)
-        
-        # (4) ノード識別子と予測値をマージ
-        
-        # バッチ内のノード名リスト (ステップ1で追加)
-        try:
-            node_names_list = [name for graph_nodes in data.node_names for name in graph_nodes]
-        except TypeError:
-            # もし既にフラットだった場合（将来の修正に備えて）
-            node_names_list = data.node_names
-        
-        # バッチ内のURDFパスリスト (data.name と data.batch から作成)
-        urdf_paths_list = [data.name[i] for i in data.batch]
-
         pred_np = pred_orig.cpu().numpy()
 
-        print("---------------------------------")
-        print(f"[DEBUG] data.num_nodes: {data.num_nodes}")
-        print(f"[DEBUG] len(node_names_list) (After Flatten): {len(node_names_list)}")
-        print(f"[DEBUG] data.num_graphs: {data.num_graphs}")
-        print("---------------------------------")
+        node_names_list = [name for graph_nodes in data.node_names for name in graph_nodes]
+        urdf_paths_list = [data.name[i] for i in data.batch]
 
-        # 各ノードの情報をCSVの1行として追加
+        # ★ デバッグ情報を蓄積
+        urdf_paths_seen.update(urdf_paths_list)
+        if batch_idx == 0:
+            # 1バッチ目だけサンプルとしていくつか名前を保存（全部だと多いので）
+            node_names_sample.extend(node_names_list[:20])
+
+        # --- CSV用の行を作る処理（元コードと同じ） ---
         for i in range(data.num_nodes):
-            row_data = [
-                urdf_paths_list[i],   # どのURDFか
-                node_names_list[i]    # どのノードか
-            ] + pred_np[i].tolist()   # 予測値
+            row_data = [urdf_paths_list[i], node_names_list[i]] + pred_np[i].tolist()
             all_rows.append(row_data)
 
-    # (5) CSVに書き出し
-    try:
-        df = pd.DataFrame(all_rows, columns=headers)
-        output_path = Path(output_csv_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(output_path, index=False)
-        print(f"[SUCCESS] Predictions saved to {output_path} ({len(df)} rows)")
+    # ★ ループが終わったところでまとめて表示
+    print("[DEBUG] unique urdf_paths in this loader:")
+    for p in sorted(urdf_paths_seen):
+        print("   ", p)
 
-    except Exception as e:
-        print(f"[ERROR] Failed to write CSV: {e}", file=sys.stderr)
+    print("[DEBUG] example node_names (first batch, up to 20):")
+    for n in node_names_sample:
+        print("   ", n)
+
+    # あとは普通にCSV出力
+    df = pd.DataFrame(all_rows, columns=headers)
+    df.to_csv(output_csv_path, index=False)
+    print(f"[saved] {output_csv_path}  ({len(df)} rows)")

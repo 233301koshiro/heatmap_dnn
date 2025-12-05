@@ -10,4 +10,5 @@ output*
 *tar.gz
 *zip
 Downuplayer_arm_gnn/__pycache__
+augmented_dataset/
 __pycache__

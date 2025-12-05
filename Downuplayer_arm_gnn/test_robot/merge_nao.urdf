@@ -1,0 +1,1112 @@
+<?xml version="1.0"?>
+<robot name="" xmlns:xi="http://www.w3.org/2001/Xinclude" xmlns:gazebo="http://playerstage.sourceforge.net/gazebo/xmlschema/#gz" xmlns:model="http://playerstage.sourceforge.net/gazebo/xmlschema/#model" xmlns:sensor="http://playerstage.sourceforge.net/gazebo/xmlschema/#sensor" xmlns:body="http://playerstage.sourceforge.net/gazebo/xmlschema/#body" xmlns:geom="http://playerstage.sourceforge.net/gazebo/xmlschema/#geom" xmlns:joint="http://playerstage.sourceforge.net/gazebo/xmlschema/#joint" xmlns:interface="http://playerstage.sourceforge.net/gazebo/xmlschema/#interface" xmlns:rendering="http://playerstage.sourceforge.net/gazebo/xmlschema/#rendering" xmlns:renderable="http://playerstage.sourceforge.net/gazebo/xmlschema/#renderable" xmlns:controller="http://playerstage.sourceforge.net/gazebo/xmlschema/#controller" xmlns:physics="http://playerstage.sourceforge.net/gazebo/xmlschema/#physics" xmlns:xacro="http://www.ros.org/wiki/xacro">
+ <xacro:macro name="gz_trans_pos" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_vel" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <xacro:macro name="gz_trans_eff" params="joint_name">
+  <transmission name="${joint_name}_trans">
+   <type>transmission_interface/SimpleTransmission</type>
+   <joint name="${joint_name}">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </joint>
+   <actuator name="${joint_name}_motor">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+   </actuator>
+  </transmission>
+ </xacro:macro>
+ <link name="base_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_base_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.0495699999999999" />
+   <origin xyz="-4.129930000000e-03 1.300350000000e-08 4.342000000000e-02" />
+   <inertia ixx="0.0030836100000000001" ixy="1.43116e-05" ixz="-3.3022000000000003e-05" iyy="0.0028835100000000002" iyz="-2.70791e-05" izz="0.0015923999999999999" />
+  </inertial>
+ </link>
+ <link name="Neck">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_Neck.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_Neck.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.078420000000000004" />
+   <origin xyz="-1.000000000000e-05 0.000000000000e+00 -2.742000000000e-02" />
+   <inertia ixx="1.6032399999999999e-05" ixy="1.57e-09" ixz="3.1627599999999999e-09" iyy="1.7039400000000002e-05" iyz="-5.2950000000000001e-08" izz="5.5337199999999998e-06" />
+  </inertial>
+ </link>
+ <joint name="HeadYaw" type="revolute">
+  <parent link="base_link" />
+  <child link="Neck" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 1.265000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-2.0856684561332237" upper="2.0856684561332237" velocity="8.2679737325475386" effort="1.5469999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="HeadYaw" />
+ <link name="Head">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_Head.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_Head.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.60533999999999999" />
+   <origin xyz="-1.119370000000e-03 0.000000000000e+00 5.258020000000e-02" />
+   <inertia ixx="0.00095777899999999997" ixy="8.7881399999999992e-06" ixz="5.3387600000000002e-06" iyy="0.00081686900000000002" iyz="-2.99579e-05" izz="0.00098499900000000007" />
+  </inertial>
+ </link>
+ <joint name="HeadPitch" type="revolute">
+  <parent link="Neck" />
+  <child link="Head" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.67195176201781692" upper="0.51487212933832727" velocity="7.194072643795427" effort="1.532" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="HeadPitch" />
+ <link name="LPelvis">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LPelvis.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LPelvis.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.069809999999999997" />
+   <origin xyz="-7.810000000000e-03 -1.114000000000e-02 2.661000000000e-02" />
+   <inertia ixx="2.3407000000000001e-05" ixy="1.0792200000000001e-06" ixz="-1.7600300000000001e-06" iyy="4.7635500000000002e-05" iyz="2.7605800000000002e-06" izz="4.97021e-05" />
+  </inertial>
+ </link>
+ <joint name="LHipYawPitch" type="revolute">
+  <parent link="base_link" />
+  <child link="LPelvis" />
+  <origin xyz="0.000000000000e+00 5.000000000000e-02 -8.500000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 7.071070000000e-01 -7.071070000000e-01" />
+  <limit lower="-1.1452902911464351" upper="0.74071773454639345" velocity="4.1617376013804783" effort="3.3479999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LHipYawPitch" />
+ <link name="LHip">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LHip.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LHip.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.14052999999999999" />
+   <origin xyz="-1.549000000000e-02 2.900000000000e-04 -5.150000000000e-03" />
+   <inertia ixx="2.3844499999999998e-05" ixy="-6.5360500000000001e-07" ixz="7.12893e-06" iyy="6.08246e-05" iyz="-2.1407200000000001e-07" izz="5.4369100000000001e-05" />
+  </inertial>
+ </link>
+ <joint name="LHipRoll" type="revolute">
+  <parent link="LPelvis" />
+  <child link="LHip" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.37943457938356723" upper="0.79045961822823185" velocity="4.1617376013804783" effort="3.3479999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LHipRoll" />
+ <link name="LThigh">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LThigh.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LThigh.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.38968000000000003" />
+   <origin xyz="1.380000000000e-03 2.210000000000e-03 -5.373000000000e-02" />
+   <inertia ixx="0.00050984399999999997" ixy="2.1129600000000001e-06" ixz="5.6412900000000003e-05" iyy="0.00046535800000000003" iyz="-7.9102900000000005e-06" izz="0.00030109800000000002" />
+  </inertial>
+ </link>
+ <joint name="LHipPitch" type="revolute">
+  <parent link="LHip" />
+  <child link="LThigh" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.5358897417550099" upper="0.48397980157802761" velocity="6.4023912950907986" effort="3.0230000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LHipPitch" />
+ <link name="LTibia">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LTibia.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LTibia.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.30142000000000002" />
+   <origin xyz="4.530000000000e-03 2.250000000000e-03 -4.936000000000e-02" />
+   <inertia ixx="0.00044617099999999998" ixy="3.70584e-06" ixz="-3.0900800000000001e-05" iyy="0.00038808400000000002" iyz="6.0195300000000001e-06" izz="0.00018551599999999999" />
+  </inertial>
+ </link>
+ <joint name="LKneePitch" type="revolute">
+  <parent link="LThigh" />
+  <child link="LTibia" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.092327917430500034" upper="2.1125465266139365" velocity="6.4023912950907986" effort="3.0230000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LKneePitch" />
+ <link name="LAnklePitch">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LAnklePitch.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LAnklePitch.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.13416" />
+   <origin xyz="4.500000000000e-04 2.900000000000e-04 6.850000000000e-03" />
+   <inertia ixx="3.2203399999999997e-05" ixy="-8.8321199999999995e-09" ixz="4.2754900000000001e-06" iyy="6.7942999999999996e-05" iyz="2.8484899999999999e-07" izz="5.4826900000000002e-05" />
+  </inertial>
+ </link>
+ <joint name="LAnklePitch" type="revolute">
+  <parent link="LTibia" />
+  <child link="LAnklePitch" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.029000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.1894401399048837" upper="0.92258104260420259" velocity="6.4023912950907986" effort="3.0230000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LAnklePitch" />
+ <link name="l_ankle">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_l_ankle.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="7.025000000000e-02 -2.310000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="-2.965000000000e-02 -1.910000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="7.025000000000e-02 2.990000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="-3.025000000000e-02 2.990000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_l_ankle.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.171851" />
+   <origin xyz="2.542030000000e-02 3.300020000000e-03 -3.239070000000e-02" />
+   <inertia ixx="8.73028e-05" ixy="8.71974e-06" ixz="-2.10613e-06" iyy="0.00035305900000000002" iyz="3.7352399999999998e-07" izz="0.00041288499999999999" />
+  </inertial>
+ </link>
+ <joint name="LAnkleRoll" type="revolute">
+  <parent link="LAnklePitch" />
+  <child link="l_ankle" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.39776053652950771" upper="0.7689920684287016" velocity="4.1617376013804783" effort="3.3479999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LAnkleRoll" />
+ <link name="RPelvis">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RPelvis.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RPelvis.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.069809999999999997" />
+   <origin xyz="-7.810000000000e-03 1.114000000000e-02 2.661000000000e-02" />
+   <inertia ixx="3.1876599999999999e-05" ixy="-1.0715199999999999e-06" ixz="-1.7729499999999999e-06" iyy="5.1836100000000003e-05" iyz="-7.0066400000000002e-06" izz="5.3965699999999997e-05" />
+  </inertial>
+ </link>
+ <joint name="RHipYawPitch" type="revolute">
+  <parent link="base_link" />
+  <child link="RPelvis" />
+  <origin xyz="0.000000000000e+00 -5.000000000000e-02 -8.500000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 7.071070000000e-01 7.071070000000e-01" />
+  <limit lower="-1.1452902911464351" upper="0.74071773454639345" velocity="4.1617376013804783" effort="3.3479999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RHipYawPitch" />
+ <link name="RHip">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RHip.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RHip.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.14052999999999999" />
+   <origin xyz="-1.549000000000e-02 -2.900000000000e-04 -5.150000000000e-03" />
+   <inertia ixx="2.3847500000000002e-05" ixy="6.1208500000000004e-07" ixz="7.1023499999999999e-06" iyy="6.0823999999999999e-05" iyz="2.1239199999999999e-07" izz="5.4372700000000002e-05" />
+  </inertial>
+ </link>
+ <joint name="RHipRoll" type="revolute">
+  <parent link="RPelvis" />
+  <child link="RHip" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.79045961822823185" upper="0.37943457938356723" velocity="4.1617376013804783" effort="3.3479999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RHipRoll" />
+ <link name="RThigh">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RThigh.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RThigh.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.38968000000000003" />
+   <origin xyz="1.380000000000e-03 -2.210000000000e-03 -5.373000000000e-02" />
+   <inertia ixx="0.00051060700000000005" ixy="-2.02799e-06" ixz="5.69893e-05" iyy="0.00046650000000000001" iyz="7.0956299999999999e-06" izz="0.00030133299999999998" />
+  </inertial>
+ </link>
+ <joint name="RHipPitch" type="revolute">
+  <parent link="RHip" />
+  <child link="RThigh" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.5358897417550099" upper="0.48397980157802761" velocity="6.4023912950907986" effort="3.0226000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RHipPitch" />
+ <link name="RTibia">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RTibia.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RTibia.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.30142000000000002" />
+   <origin xyz="4.530000000000e-03 -2.250000000000e-03 -4.936000000000e-02" />
+   <inertia ixx="0.00044692100000000003" ixy="-3.9687200000000003e-06" ixz="-3.9400899999999997e-05" iyy="0.000387711" iyz="-5.0003399999999996e-06" izz="0.00018374099999999999" />
+  </inertial>
+ </link>
+ <joint name="RKneePitch" type="revolute">
+  <parent link="RThigh" />
+  <child link="RTibia" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.092327917430500034" upper="2.1125465266139365" velocity="6.4023912950907986" effort="3.0226000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RKneePitch" />
+ <link name="RAnklePitch">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RAnklePitch.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RAnklePitch.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.13416" />
+   <origin xyz="4.500000000000e-04 -2.900000000000e-04 6.850000000000e-03" />
+   <inertia ixx="3.22017e-05" ixy="4.6832099999999998e-08" ixz="4.2882099999999997e-06" iyy="6.7988499999999995e-05" iyz="-2.71089e-07" izz="5.4874699999999998e-05" />
+  </inertial>
+ </link>
+ <joint name="RAnklePitch" type="revolute">
+  <parent link="RTibia" />
+  <child link="RAnklePitch" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 -1.029000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.1863002925805457" upper="0.93200582056497194" velocity="6.4023912950907986" effort="3.0226000000000002" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RAnklePitch" />
+ <link name="r_ankle">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_r_ankle.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <origin xyz="-3.025000000000e-02 1.910000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="-2.965000000000e-02 -2.990000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="7.025000000000e-02 -2.990000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <origin xyz="7.025000000000e-02 2.310000000000e-02 -4.511000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+   <geometry>
+    <box size="1.000000000000e-02 1.000000000000e-02 5.000000000000e-03" />
+   </geometry>
+  </collision>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_r_ankle.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.171851" />
+   <origin xyz="2.542030000000e-02 -3.300020000000e-03 -3.239070000000e-02" />
+   <inertia ixx="8.7163000000000006e-05" ixy="-8.5403500000000003e-06" ixz="-2.3523400000000002e-06" iyy="0.00035219100000000002" iyz="-4.8177299999999998e-07" izz="0.00041216400000000002" />
+  </inertial>
+ </link>
+ <joint name="RAnkleRoll" type="revolute">
+  <parent link="RAnklePitch" />
+  <child link="r_ankle" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-0.7689920684287016" upper="0.39776053652950771" velocity="4.1617376013804783" effort="3.3479999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RAnkleRoll" />
+ <link name="LShoulder">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LShoulder.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LShoulder.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.093039999999999998" />
+   <origin xyz="-1.650000000000e-03 -2.663000000000e-02 1.400000000000e-04" />
+   <inertia ixx="1.83025e-05" ixy="2.0601099999999998e-06" ixz="1.8877600000000001e-09" iyy="1.39005e-05" iyz="-3.66592e-07" izz="2.01862e-05" />
+  </inertial>
+ </link>
+ <joint name="LShoulderPitch" type="revolute">
+  <parent link="base_link" />
+  <child link="LShoulder" />
+  <origin xyz="0.000000000000e+00 9.800000000000e-02 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0856684561332237" upper="2.0856684561332237" velocity="8.2679737325475386" effort="1.329" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LShoulderPitch" />
+ <link name="LBicep">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LBicep.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LBicep.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.15776999999999999" />
+   <origin xyz="2.455000000000e-02 5.630000000000e-03 3.300000000000e-03" />
+   <inertia ixx="8.7181000000000004e-05" ixy="-2.5338100000000001e-05" ixz="-1.4212999999999999e-05" iyy="0.00027471199999999998" iyz="4.7143900000000002e-07" izz="0.00024181199999999999" />
+  </inertial>
+ </link>
+ <joint name="LShoulderRoll" type="revolute">
+  <parent link="LShoulder" />
+  <child link="LBicep" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-0.31415926535897931" upper="1.3264502315156905" velocity="7.194072643795427" effort="1.7835000000000001" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LShoulderRoll" />
+ <link name="LElbow">
+  <inertial>
+   <mass value="0.064829999999999999" />
+   <origin xyz="-2.744000000000e-02 0.000000000000e+00 -1.400000000000e-04" />
+   <inertia ixx="5.5958800000000004e-06" ixy="4.2100000000000001e-09" ixz="2.92241e-07" iyy="2.6617900000000001e-05" iyz="-1.8400000000000001e-09" izz="2.76294e-05" />
+  </inertial>
+ </link>
+ <joint name="LElbowYaw" type="revolute">
+  <parent link="LBicep" />
+  <child link="LElbow" />
+  <origin xyz="1.050000000000e-01 1.500000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0856684561332237" upper="2.0856684561332237" velocity="8.2679737325475386" effort="1.5469999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LElbowYaw" />
+ <link name="LForeArm">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LForeArm.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LForeArm.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.077609999999999998" />
+   <origin xyz="2.556000000000e-02 2.810000000000e-03 7.600000000000e-04" />
+   <inertia ixx="2.4674599999999999e-05" ixy="3.23152e-06" ixz="1.5822099999999999e-06" iyy="3.8383700000000003e-05" iyz="1.39194e-07" izz="3.5970799999999998e-05" />
+  </inertial>
+ </link>
+ <joint name="LElbowRoll" type="revolute">
+  <parent link="LElbow" />
+  <child link="LForeArm" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.5446198786734857" upper="-0.034906585039886591" velocity="7.194072643795427" effort="1.532" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LElbowRoll" />
+ <link name="l_wrist">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_l_wrist.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_l_wrist.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.185333" />
+   <origin xyz="3.434000000000e-02 -8.799860000000e-04 3.080120000000e-03" />
+   <inertia ixx="6.86494e-05" ixy="1.15538e-07" ixz="-2.87262e-06" iyy="0.00013575699999999999" iyz="2.6753800000000001e-06" izz="0.00013322900000000001" />
+  </inertial>
+ </link>
+ <joint name="LWristYaw" type="revolute">
+  <parent link="LForeArm" />
+  <child link="l_wrist" />
+  <origin xyz="5.595000000000e-02 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.8238690683340744" upper="1.8238690683340744" velocity="24.6229305542108" effort="0.40749999999999997" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LWristYaw" />
+ <link name="l_gripper">
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LHand" type="revolute">
+  <parent link="l_wrist" />
+  <child link="l_gripper" />
+  <origin xyz="5.775000000000e-02 0.000000000000e+00 -1.231000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="1.0000003575641672" velocity="8.3300027341634166" effort="0.29199999999999998" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LHand" />
+ <link name="LFinger21_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger21_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger21_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LFinger21" type="continuous">
+  <parent link="l_wrist" />
+  <child link="LFinger21_link" />
+  <origin xyz="6.907000000000e-02 -1.157000000000e-02 -3.040000000000e-03" rpy="1.255390045919e+00 9.766618408647e-01 -2.640676746580e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LFinger21" />
+ <link name="LFinger22_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger22_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger22_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LFinger22" type="continuous">
+  <parent link="LFinger21_link" />
+  <child link="LFinger22_link" />
+  <origin xyz="1.436000000000e-02 6.938893903907e-18 8.496415440340e-18" rpy="1.766442742269e-16 1.311254647953e-17 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LFinger22" />
+ <link name="LFinger23_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger23_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger23_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LFinger23" type="continuous">
+  <parent link="LFinger22_link" />
+  <child link="LFinger23_link" />
+  <origin xyz="1.436000000000e-02 1.127570259385e-17 -1.836418301255e-18" rpy="7.882059134974e-17 1.484301361495e-16 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LFinger23" />
+ <link name="LFinger11_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger11_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger11_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LFinger11" type="continuous">
+  <parent link="l_wrist" />
+  <child link="LFinger11_link" />
+  <origin xyz="6.907000000000e-02 1.157000000000e-02 -3.040000000000e-03" rpy="1.886192911346e+00 9.766611371011e-01 2.640630200487e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LFinger11" />
+ <link name="LFinger12_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger12_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger12_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LFinger12" type="continuous">
+  <parent link="LFinger11_link" />
+  <child link="LFinger12_link" />
+  <origin xyz="1.436000000000e-02 5.204170427930e-18 4.562202171973e-18" rpy="9.450346592516e-18 5.506857651632e-17 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LFinger12" />
+ <link name="LFinger13_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger13_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LFinger13_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LFinger13" type="continuous">
+  <parent link="LFinger12_link" />
+  <child link="LFinger13_link" />
+  <origin xyz="1.436000000000e-02 -1.301042606983e-17 5.023970785847e-18" rpy="-2.745117315021e-17 4.249479593080e-17 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LFinger13" />
+ <link name="LThumb1_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LThumb1_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LThumb1_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LThumb1" type="continuous">
+  <parent link="l_wrist" />
+  <child link="LThumb1_link" />
+  <origin xyz="4.895000000000e-02 0.000000000000e+00 -2.638000000000e-02" rpy="-1.570799143365e+00 4.729839160965e-02 3.343402389031e-08" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LThumb1" />
+ <link name="LThumb2_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_LThumb2_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_LThumb2_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="LThumb2" type="continuous">
+  <parent link="LThumb1_link" />
+  <child link="LThumb2_link" />
+  <origin xyz="1.436000000000e-02 -5.963111948670e-18 -1.244376185529e-18" rpy="-9.804168136452e-18 6.615750834530e-18 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="LThumb2" />
+ <link name="RShoulder">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RShoulder.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RShoulder.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.093039999999999998" />
+   <origin xyz="-1.650000000000e-03 2.663000000000e-02 1.400000000000e-04" />
+   <inertia ixx="1.83025e-05" ixy="-2.0601099999999998e-06" ixz="1.8877600000000001e-09" iyy="1.39005e-05" iyz="3.66592e-07" izz="2.01862e-05" />
+  </inertial>
+ </link>
+ <joint name="RShoulderPitch" type="revolute">
+  <parent link="base_link" />
+  <child link="RShoulder" />
+  <origin xyz="0.000000000000e+00 -9.800000000000e-02 1.000000000000e-01" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 1.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0856684561332237" upper="2.0856684561332237" velocity="8.2679737325475386" effort="1.329" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RShoulderPitch" />
+ <link name="RBicep">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RBicep.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RBicep.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.15776999999999999" />
+   <origin xyz="2.455000000000e-02 -5.630000000000e-03 3.300000000000e-03" />
+   <inertia ixx="0.00010340099999999999" ixy="5.48849e-05" ixz="-1.3264299999999999e-05" iyy="0.00027076999999999998" iyz="9.1670700000000003e-06" izz="0.00025452899999999997" />
+  </inertial>
+ </link>
+ <joint name="RShoulderRoll" type="revolute">
+  <parent link="RShoulder" />
+  <child link="RBicep" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.3264502315156905" upper="0.31415926535897931" velocity="7.194072643795427" effort="1.7829999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RShoulderRoll" />
+ <link name="RElbow">
+  <inertial>
+   <mass value="0.064829999999999999" />
+   <origin xyz="-2.744000000000e-02 0.000000000000e+00 -1.400000000000e-04" />
+   <inertia ixx="5.5958800000000004e-06" ixy="4.2100000000000001e-09" ixz="2.92241e-07" iyy="2.6617900000000001e-05" iyz="-1.8400000000000001e-09" izz="2.76294e-05" />
+  </inertial>
+ </link>
+ <joint name="RElbowYaw" type="revolute">
+  <parent link="RBicep" />
+  <child link="RElbow" />
+  <origin xyz="1.050000000000e-01 -1.500000000000e-02 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-2.0856684561332237" upper="2.0856684561332237" velocity="8.2679737325475386" effort="1.5469999999999999" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RElbowYaw" />
+ <link name="RForeArm">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RForeArm.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RForeArm.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.077609999999999998" />
+   <origin xyz="2.556000000000e-02 -2.810000000000e-03 7.600000000000e-04" />
+   <inertia ixx="2.4733099999999999e-05" ixy="-3.2418e-06" ixz="9.0645100000000005e-07" iyy="3.84719e-05" iyz="-1.38804e-07" izz="3.5931900000000001e-05" />
+  </inertial>
+ </link>
+ <joint name="RElbowRoll" type="revolute">
+  <parent link="RElbow" />
+  <child link="RForeArm" />
+  <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="0.034906585039886591" upper="1.5446198786734857" velocity="7.194072643795427" effort="1.532" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RElbowRoll" />
+ <link name="r_wrist">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_r_wrist.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_r_wrist.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="0.185333" />
+   <origin xyz="3.434000000000e-02 8.799860000000e-04 3.080120000000e-03" />
+   <inertia ixx="6.86494e-05" ixy="1.1316599999999999e-05" ixz="-2.87262e-06" iyy="0.00013575699999999999" iyz="3.6800599999999999e-06" izz="0.00013322900000000001" />
+  </inertial>
+ </link>
+ <joint name="RWristYaw" type="revolute">
+  <parent link="RForeArm" />
+  <child link="r_wrist" />
+  <origin xyz="5.595000000000e-02 0.000000000000e+00 0.000000000000e+00" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="-1.8238690683340744" upper="1.8238690683340744" velocity="24.6229305542108" effort="0.40749999999999997" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RWristYaw" />
+ <link name="r_gripper">
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RHand" type="revolute">
+  <parent link="r_wrist" />
+  <child link="r_gripper" />
+  <origin xyz="5.775000000000e-02 0.000000000000e+00 -1.213000000000e-02" rpy="0.000000000000e+00 -0.000000000000e+00 0.000000000000e+00" />
+  <axis xyz="1.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+  <limit lower="0" upper="1.0000003575641672" velocity="8.3300027341634166" effort="0.29199999999999998" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RHand" />
+ <link name="RFinger21_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger21_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger21_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RFinger21" type="continuous">
+  <parent link="r_wrist" />
+  <child link="RFinger21_link" />
+  <origin xyz="6.907000000000e-02 -1.157000000000e-02 -3.040000000000e-03" rpy="1.255390045919e+00 9.766618408647e-01 -2.640676746580e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RFinger21" />
+ <link name="RFinger22_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger22_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger22_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RFinger22" type="continuous">
+  <parent link="RFinger21_link" />
+  <child link="RFinger22_link" />
+  <origin xyz="1.436000000000e-02 6.938893903907e-18 8.496415440340e-18" rpy="1.766442742269e-16 1.311254647953e-17 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RFinger22" />
+ <link name="RFinger23_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger23_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger23_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RFinger23" type="continuous">
+  <parent link="RFinger22_link" />
+  <child link="RFinger23_link" />
+  <origin xyz="1.436000000000e-02 1.127570259385e-17 -1.836418301255e-18" rpy="7.882059134974e-17 1.484301361495e-16 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RFinger23" />
+ <link name="RFinger11_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger11_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger11_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RFinger11" type="continuous">
+  <parent link="r_wrist" />
+  <child link="RFinger11_link" />
+  <origin xyz="6.907000000000e-02 1.157000000000e-02 -3.040000000000e-03" rpy="1.886192911346e+00 9.766611371011e-01 2.640630200487e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RFinger11" />
+ <link name="RFinger12_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger12_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger12_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RFinger12" type="continuous">
+  <parent link="RFinger11_link" />
+  <child link="RFinger12_link" />
+  <origin xyz="1.436000000000e-02 5.204170427930e-18 4.562202171973e-18" rpy="9.450346592516e-18 5.506857651632e-17 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RFinger12" />
+ <link name="RFinger13_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger13_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RFinger13_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RFinger13" type="continuous">
+  <parent link="RFinger12_link" />
+  <child link="RFinger13_link" />
+  <origin xyz="1.436000000000e-02 -1.301042606983e-17 5.023970785847e-18" rpy="-2.745117315021e-17 4.249479593080e-17 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RFinger13" />
+ <link name="RThumb1_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RThumb1_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RThumb1_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RThumb1" type="continuous">
+  <parent link="r_wrist" />
+  <child link="RThumb1_link" />
+  <origin xyz="4.895000000000e-02 0.000000000000e+00 -2.638000000000e-02" rpy="-1.570799143365e+00 4.729839160965e-02 3.343402389031e-08" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RThumb1" />
+ <link name="RThumb2_link">
+  <visual>
+   <geometry>
+    <mesh filename="file:///tmp/_RThumb2_link.dae" />
+   </geometry>
+  </visual>
+  <collision>
+   <geometry>
+    <mesh filename="file:///tmp/_RThumb2_link.stl" />
+   </geometry>
+  </collision>
+  <inertial>
+   <mass value="1.9999999999999999e-06" />
+   <origin xyz="0.000000000000e+00 0.000000000000e+00 0.000000000000e+00" />
+   <inertia ixx="1.0999999999999999e-09" ixy="0" ixz="0" iyy="1.0999999999999999e-09" iyz="0" izz="1.0999999999999999e-09" />
+  </inertial>
+ </link>
+ <joint name="RThumb2" type="continuous">
+  <parent link="RThumb1_link" />
+  <child link="RThumb2_link" />
+  <origin xyz="1.436000000000e-02 -5.963111948670e-18 -1.244376185529e-18" rpy="-9.804168136452e-18 6.615750834530e-18 -9.998991284676e-01" />
+  <axis xyz="0.000000000000e+00 0.000000000000e+00 1.000000000000e+00" />
+  <limit lower="-1.7976931348623157e+308" upper="1.7976931348623157e+308" velocity="1.7976931348623157e+308" effort="1.7976931348623157e+308" />
+ </joint>
+ <xacro:gz_trans_pos joint_name="RThumb2" />
+</robot>
+
