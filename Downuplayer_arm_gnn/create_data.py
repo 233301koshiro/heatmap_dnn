@@ -84,7 +84,7 @@ def main():
     mass_range = (0.5, 1.5) 
 
     # ★ 除外するロボット名のリスト（部分一致で判定します）
-    exclude_keywords = ['merge_kinova', 'merge_a1_']
+    exclude_keywords = ['merge_kinova', 'merge_a1','merge_nao']
     
     # --- 実行 ---
     input_files = glob.glob(os.path.join(input_dir, "*.urdf"))
