@@ -230,6 +230,7 @@ class MaskedTreeAutoencoder(nn.Module):
 
     def forward(self, data: Data, mask_idx: Optional[torch.Tensor] = None,
                 recon_only_masked: bool = True) -> Tuple[torch.Tensor, dict]:
+        
         x, ei = data.x, data.edge_index
         device = x.device
         self._forward_calls += 1
@@ -284,7 +285,7 @@ class MaskedTreeAutoencoder(nn.Module):
 
         # === unit axis をここで一元的に作る ===
         axis_norm = F.normalize(x_raw[:, 7:10], dim=-1, eps=1e-6)
-
+        quat_norm = F.normalize(x_raw[:, 13:17], dim=-1, eps=1e-6)
         # === 出力テンソルを組み立て（評価/損失と整合）===
         # 0-2: deg, depth, mass は 0..1 に収めたいので sigmoid
         # 3-6: joint logits はそのまま（CE 用）
@@ -296,6 +297,7 @@ class MaskedTreeAutoencoder(nn.Module):
             axis_norm,                      # 7..9
             torch.sigmoid(x_raw[:,10:13]),                # 10..12
             #x_raw[:,10:13]#baxterなどの大きなロボットを扱うときはsigmoidは邪魔らしい(普段はいいけど)
+            quat_norm                       # 13..16
         ], dim=1)
 
 
@@ -349,6 +351,7 @@ def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,los
     rotate_joint_idx = 3#revoluteジョイントのindex
     axis_idx_start, axis_idx_end = 7, 9
     origin_idx_start, origin_idx_end = 10, 12
+    quat_idx_start, quat_idx_end = 13, 16
 
     #moveable_idx = 15
     #rot_width_idx = 16
@@ -413,6 +416,20 @@ def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,los
         x_hat[:, origin_idx_start:origin_idx_end+1], x_true[:, origin_idx_start:origin_idx_end+1], reduction='none'
     )
 
+    # axisと同様に、内積を取って 1 - dot を損失とする
+    # (x_hatはforwardで既にnormalize済み前提だが、念のためここでもしても良い)
+    q_hat = x_hat[:, quat_idx_start:quat_idx_end+1]
+    q_true = x_true[:, quat_idx_start:quat_idx_end+1]
+    
+    # クォータニオンは q と -q が同じ回転を表す「二重被覆」特性があるため、
+    # 単純な内積ではなく、絶対値の内積、または min(|q - q_hat|, |q + q_hat|) を取る必要がある
+    # しかし簡易的には 1 - |dot| で向きの反転を許容する
+    dot_prod = (q_hat * q_true).sum(dim=1).abs() # 絶対値をとることで q = -q 問題を回避
+    quat_loss = 1.0 - dot_prod
+    
+    # 次元拡張して格納
+    quat_loss_unsq = quat_loss.unsqueeze(1)
+    losses[:, quat_idx_start:quat_idx_end+1] = quat_loss_unsq.expand(-1, 4)
     #使ってない特徴量の損失計算はコメントアウト
     #losses[:, moveable_idx] = F.l1_loss(x_hat[:, moveable_idx], x_true[:, moveable_idx], reduction='none')
     #losses[:, rot_width_idx] = F.l1_loss(x_hat[:, rot_width_idx], x_true[:, rot_width_idx], reduction='none')

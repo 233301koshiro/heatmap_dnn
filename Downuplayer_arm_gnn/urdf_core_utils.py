@@ -5,7 +5,7 @@ import networkx as nx
 import torch
 from typing import Optional, Tuple, Dict, List
 from torch_geometric.data import Data
-
+from scipy.spatial.transform import Rotation as R
 # ========= 定数定義 =========
 JTYPE_ORDER = ["revolute", "continuous", "prismatic", "fixed", "floating", "planar"]
 JTYPE_TO_IDX = {name: i for i, name in enumerate(JTYPE_ORDER)}
@@ -14,7 +14,8 @@ FEATURE_NAMES = (
     ["deg", "depth", "mass"] +
     [f"jtype_is_{n}" for n in JTYPE_ORDER] +
     ["axis_x", "axis_y", "axis_z",
-     "origin_x", "origin_y", "origin_z"]
+     "origin_x", "origin_y", "origin_z",
+     "quat_x", "quat_y", "quat_z", "quat_w"]
 )
 
 SHORT_NAME_MAP = {
@@ -136,6 +137,12 @@ def urdf_to_graph(root: ET.Element) -> Tuple[nx.DiGraph, Dict[str, dict]]:
         orig = joint.find("origin")
         ox, oy, oz = _parse_xyz(orig.attrib.get("xyz")) if orig is not None else (0.0, 0.0, 0.0)
 
+        rpy_str = orig.attrib.get("rpy") if orig is not None else None
+        roll, pitch, yaw = _parse_xyz(rpy_str) # _parse_xyzは"x y z"形式なら使えるので流用
+        # Euler(xyz) -> Quaternion(x,y,z,w)
+        # URDFのrpyは固定軸(xyz)または移動軸など定義があるが、一般的にscipyの'xyz'で近似可能
+        quat = R.from_euler('xyz', [roll, pitch, yaw]).as_quat() # returns [x, y, z, w]
+
         child_joint_attr[child] = dict(
             joint_name=jname,
             joint_type=jtype,
@@ -221,9 +228,11 @@ def graph_features(G: nx.DiGraph) -> Tuple[nx.DiGraph, List[str], np.ndarray, np
     S = G.copy()
     nodes = list(S.nodes())
     node_idx = {n: i for i, n in enumerate(nodes)}
+
+    # ルートノードなど joint_quat がない場合のデフォルト値 (0,0,0,1 = 回転なし)
     depth = get_graph_depths(S)
     X = []
-
+    def_quat = (0.0, 0.0, 0.0, 1.0)
     for n in nodes:
         nd = S.nodes[n]
         deg = float(S.degree(n))
@@ -236,10 +245,13 @@ def graph_features(G: nx.DiGraph) -> Tuple[nx.DiGraph, List[str], np.ndarray, np
         ax_norm = np.linalg.norm(ax)
         if ax_norm > 1e-9:
             ax = ax / ax_norm
-            
+        
+        #originのxyz
         org = np.array(nd.get("joint_origin_xyz", (0.0, 0.0, 0.0)), dtype=np.float64)
+        #クォータニオン
+        quat = np.array(nd.get("joint_quat", def_quat), dtype=np.float64)
 
-        feat = [deg, dep, mass] + j_one + ax.tolist() + org.tolist()
+        feat = [deg, dep, mass] + j_one + ax.tolist() + org.tolist() + quat.tolist() # <--- quatを追加
         X.append(feat)
 
     X_np = np.array(X, dtype=np.float32)
