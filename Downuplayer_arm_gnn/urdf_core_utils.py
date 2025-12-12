@@ -7,7 +7,7 @@ from typing import Optional, Tuple, Dict, List
 from torch_geometric.data import Data
 from scipy.spatial.transform import Rotation as R
 # ========= 定数定義 =========
-JTYPE_ORDER = ["revolute", "continuous", "prismatic", "fixed", "floating", "planar"]
+JTYPE_ORDER = ["revolute", "continuous", "prismatic", "fixed"]
 JTYPE_TO_IDX = {name: i for i, name in enumerate(JTYPE_ORDER)}
 
 FEATURE_NAMES = (
@@ -15,7 +15,7 @@ FEATURE_NAMES = (
     [f"jtype_is_{n}" for n in JTYPE_ORDER] +
     ["axis_x", "axis_y", "axis_z",
      "origin_x", "origin_y", "origin_z",
-     "quat_x", "quat_y", "quat_z", "quat_w"]
+     "rot6d_0", "rot6d_1", "rot6d_2", "rot6d_3", "rot6d_4", "rot6d_5"] # <--- これを追加
 )
 
 SHORT_NAME_MAP = {
@@ -25,6 +25,24 @@ SHORT_NAME_MAP = {
 }
 
 # ========= ヘルパー関数 =========
+def rotation_to_6d(r_obj):
+    """
+    scipy.spatial.transform.Rotation オブジェクトから
+    6D回転表現 (3x2行列の要素を並べた6次元ベクトル) を生成します。
+    
+    Args:
+        r_obj: scipyのRotationオブジェクト
+    Returns:
+        np.ndarray: 6要素の配列 [r11, r21, r31, r12, r22, r32]
+    """
+    # 3x3の回転行列を取得
+    matrix = r_obj.as_matrix()
+    
+    # 最初の2列（X軸ベクトルとY軸ベクトル）を取り出す
+    # col1: matrix[:, 0], col2: matrix[:, 1]
+    # これらを結合して6次元にする
+    return np.concatenate([matrix[:, 0], matrix[:, 1]])
+
 def assert_finite_data(d, name_hint=""):
     """
     データに非有限値（NaN/Inf）が含まれていないことを検証します。
@@ -138,10 +156,15 @@ def urdf_to_graph(root: ET.Element) -> Tuple[nx.DiGraph, Dict[str, dict]]:
         ox, oy, oz = _parse_xyz(orig.attrib.get("xyz")) if orig is not None else (0.0, 0.0, 0.0)
 
         rpy_str = orig.attrib.get("rpy") if orig is not None else None
+        # scipyのRotationオブジェクトを作成
+        
         roll, pitch, yaw = _parse_xyz(rpy_str) # _parse_xyzは"x y z"形式なら使えるので流用
+        r_obj = R.from_euler('xyz', [roll, pitch, yaw])
         # Euler(xyz) -> Quaternion(x,y,z,w)
         # URDFのrpyは固定軸(xyz)または移動軸など定義があるが、一般的にscipyの'xyz'で近似可能
-        quat = R.from_euler('xyz', [roll, pitch, yaw]).as_quat() # returns [x, y, z, w]
+        # ★変更: クォータニオン取得をやめて6D回転を取得
+        # quat = np.array(nd.get("joint_quat", def_quat), dtype=np.float64)
+        rot6d = rotation_to_6d(r_obj) # <-- これを使う
 
         child_joint_attr[child] = dict(
             joint_name=jname,
@@ -149,6 +172,7 @@ def urdf_to_graph(root: ET.Element) -> Tuple[nx.DiGraph, Dict[str, dict]]:
             joint_type_idx=JTYPE_TO_IDX.get(jtype, fixed_idx),
             joint_axis=tuple(axis),
             joint_origin_xyz=(ox, oy, oz),
+            joint_rot6d=tuple(rot6d), # <--- キー名を 'joint_quat' から 'joint_rot6d' に変更
         )
         G.add_edge(parent, child)
 
@@ -232,7 +256,8 @@ def graph_features(G: nx.DiGraph) -> Tuple[nx.DiGraph, List[str], np.ndarray, np
     # ルートノードなど joint_quat がない場合のデフォルト値 (0,0,0,1 = 回転なし)
     depth = get_graph_depths(S)
     X = []
-    def_quat = (0.0, 0.0, 0.0, 1.0)
+    #def_quat = (0.0, 0.0, 0.0, 1.0)
+    def_rot6d = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0)
     for n in nodes:
         nd = S.nodes[n]
         deg = float(S.degree(n))
@@ -248,10 +273,12 @@ def graph_features(G: nx.DiGraph) -> Tuple[nx.DiGraph, List[str], np.ndarray, np
         
         #originのxyz
         org = np.array(nd.get("joint_origin_xyz", (0.0, 0.0, 0.0)), dtype=np.float64)
-        #クォータニオン
-        quat = np.array(nd.get("joint_quat", def_quat), dtype=np.float64)
+        # ★変更: クォータニオン取得をやめて6D回転を取得
+        # quat = np.array(nd.get("joint_quat", def_quat), dtype=np.float64)
+        rot6d = np.array(nd.get("joint_rot6d", def_rot6d), dtype=np.float64)
 
-        feat = [deg, dep, mass] + j_one + ax.tolist() + org.tolist() + quat.tolist() # <--- quatを追加
+        #feat = [deg, dep, mass] + j_one + ax.tolist() + org.tolist() + quat.tolist() # <--- quatを追加
+        feat = [deg, dep, mass] + j_one + ax.tolist() + org.tolist() + rot6d.tolist() # <--- rot6dを追加
         X.append(feat)
 
     X_np = np.array(X, dtype=np.float32)

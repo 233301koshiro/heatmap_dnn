@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, Callable
 from torch_geometric.data import Data
 
 # 正規化対象のデフォルト列 (deg, depth, mass, origin_x, origin_y, origin_z)
-DEFAULT_NORM_COLS = [0, 1, 2, 12, 13, 14]
+DEFAULT_NORM_COLS = [0, 1, 2, 10, 11, 12]
 
 #massの推定が不安定な場合なのでデータを読み込んだあとにmassの列を1にしてみる
 def fix_mass_to_one(dataset: List[Data]) -> None:
@@ -19,6 +19,7 @@ def fix_mass_to_one(dataset: List[Data]) -> None:
     for d in dataset:
         d.x[:, mass_col_idx] = 1.0
 
+'''
 def compute_global_minmax_stats(dataset: List[Data], norm_cols: List[int] = DEFAULT_NORM_COLS, eps: float = 1e-8) -> Dict[str, Any]:
     """
     データセット全体から指定列のMin-Max統計（最小値、最大値、幅）を計算します。
@@ -57,7 +58,71 @@ def compute_global_minmax_stats(dataset: List[Data], norm_cols: List[int] = DEFA
         "width": width.tolist(),
         "method": "minmax",
     }
+'''
+def compute_global_minmax_stats(dataset: List[Data], norm_cols: List[int] = DEFAULT_NORM_COLS, eps: float = 1e-8) -> Dict[str, Any]:
+    """
+    データセット全体から統計情報を計算します。
+    【変更点】
+    - mass(2) と origin(10,11,12) は StandardScaler (平均と標準偏差) を使用
+    - その他 (deg, depthなど) は Min-Max Scaling (最小値と範囲) を使用
+    """
+    # StandardScaler (Mean/Std) を適用したい列のインデックス
+    # 2: mass, 10: origin_x, 11: origin_y, 12: origin_z
+    standard_cols_set = {2, 10, 11, 12} 
+    
+    stacked = []
+    for d in dataset:
+        A = d.x.detach().cpu().numpy()[:, norm_cols].astype(np.float64, copy=True)
+        A[~np.isfinite(A)] = np.nan
+        stacked.append(A)
+    
+    M = np.vstack(stacked)
+    
+    # 計算式 (x - center) / scale に合わせるための変数
+    centers = np.zeros(M.shape[1])
+    scales = np.zeros(M.shape[1])
 
+    for i in range(M.shape[1]):
+        col_idx = norm_cols[i]
+        col_data = M[:, i]
+        valid_data = col_data[np.isfinite(col_data)]
+
+        if len(valid_data) == 0:
+            centers[i] = 0.0
+            scales[i] = 1.0
+            continue
+
+        if col_idx in standard_cols_set:
+            # === StandardScaler (平均と標準偏差) ===
+            mean_val = np.mean(valid_data)
+            std_val = np.std(valid_data)
+            
+            centers[i] = mean_val
+            # 標準偏差が0に近い場合は1.0にしてゼロ除算を防ぐ
+            scales[i] = std_val if std_val > eps else 1.0
+            
+            print(f"[Stats] Col {col_idx} (Standard): Mean={mean_val:.4f}, Std={std_val:.4f}")
+            
+        else:
+            # === Min-Max Scaling (最小値と範囲) ===
+            c_min = np.min(valid_data)
+            c_max = np.max(valid_data)
+            width = c_max - c_min
+            
+            centers[i] = c_min
+            scales[i] = width if width > eps else 1.0
+    
+    # 辞書のキー名は min/width のままにする（apply関数やdenorm関数を変更しなくて済むため）
+    # 実質的な意味は center/scale に変わる
+    return {
+        "norm_cols": list(norm_cols),
+        "min": centers.tolist(),  
+        "max": (centers + scales).tolist(),
+        "width": scales.tolist(), 
+        "method": "hybrid_standard_minmax",
+    }
+
+'''
 def apply_global_minmax_inplace(dataset: List[Data], stats: Dict[str, Any]) -> None:
     """
     計算済みの統計情報を使用して、データセットをインプレースでMin-Max正規化します。
@@ -75,6 +140,30 @@ def apply_global_minmax_inplace(dataset: List[Data], stats: Dict[str, Any]) -> N
         vmin_d = vmin.to(d.x.device)
         width_d = width.to(d.x.device)
         d.x[:, cols] = (d.x[:, cols] - vmin_d) / width_d
+'''
+def apply_global_minmax_inplace(dataset: List[Data], stats: Dict[str, Any]) -> None:
+    """
+    計算済みの統計情報を使用して、データセットをインプレースで正規化します。
+    ★修正: 外れ値が巨大な値(100以上など)にならないよう、[-5, 5]の範囲でクリップします。
+    """
+    cols = stats["norm_cols"]
+    vmin = torch.tensor(stats["min"], dtype=torch.float32)
+    width = torch.tensor(stats["width"], dtype=torch.float32)
+    
+    # クリッピングする範囲 (標準偏差やIQRの5倍程度あれば十分情報は残る)
+    clip_min = -10.0
+    clip_max = 10.0
+    
+    for d in dataset:
+        vmin_d = vmin.to(d.x.device)
+        width_d = width.to(d.x.device)
+        
+        # 正規化: (x - center) / scale
+        d.x[:, cols] = (d.x[:, cols] - vmin_d) / width_d
+        
+        # ★追加: 値を -5.0 ～ 5.0 の範囲に収める
+        # Min-Maxの列(0~1)には影響せず、Robustの列の外れ値(100とか)だけが5に抑えられる
+        d.x[:, cols] = torch.clamp(d.x[:, cols], clip_min, clip_max)
 
 def denorm_batch(xn: torch.Tensor, stats: Dict[str, Any]) -> torch.Tensor:
     """

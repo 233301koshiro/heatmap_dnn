@@ -11,4 +11,5 @@ output*
 *zip
 Downuplayer_arm_gnn/__pycache__
 augmented_dataset/
+Downuplayer_arm_gnn/*.pdf
 __pycache__
