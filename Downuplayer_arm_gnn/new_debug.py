@@ -229,7 +229,7 @@ def main():
     # -----------------------------------------------------
     # 2. 統計計算と正規化
     # -----------------------------------------------------
-    fix_mass_to_one(dataset)
+    #fix_mass_to_one(dataset)
     minimal_dataset_report(dataset)
 
     feat_names = dataset[0].feature_names
@@ -310,8 +310,8 @@ def main():
         in_dim=dataset[0].num_node_features,
         hidden=128,
         bottleneck_dim=128,
-        enc_rounds=1,
-        dec_rounds=1,
+        enc_rounds=2,
+        dec_rounds=2,
         dropout=dropout,
         mask_strategy=cfg.mask_strategy
     ).to(device)

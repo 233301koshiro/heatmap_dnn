@@ -142,7 +142,7 @@ def main():
     num_augmentations = 200                
     
     geom_range = (0.8, 1.2) 
-    mass_range = (0.5, 1.5)
+    mass_range = (0.8, 1.2)
     
     rpy_noise_rad = 0.1 
 
