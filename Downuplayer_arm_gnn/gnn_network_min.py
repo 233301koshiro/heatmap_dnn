@@ -109,27 +109,39 @@ def choose_mask_idx(
 class DownUpLayer(nn.Module):
     def __init__(self, hidden: int, bottleneck_dim: int, dropout: float = 0.1):
         super().__init__()
-        # GINConv の更新関数 φ は MLP。down/up で別パラメータ。
+        # Down用とUp用のGINConvを定義
         self.down = GINConv(mlp([hidden, bottleneck_dim, hidden], dropout=dropout), train_eps=True)
         self.up   = GINConv(mlp([hidden, bottleneck_dim, hidden], dropout=dropout), train_eps=True)
+        
         self.ln1 = nn.LayerNorm(hidden)
         self.ln2 = nn.LayerNorm(hidden)
-        self.dir_emb = nn.Parameter(torch.randn(2, hidden) * 0.02)  # [down, up] これは方向埋め込み
+        
+        # 方向埋め込み
+        self.dir_emb = nn.Parameter(torch.randn(2, hidden) * 0.02)
+
+        # ★追加: Downの結果とUpの結果を結合して元の次元に戻す層
+        # input: hidden * 2 (downの結果 + upの結果), output: hidden
+        self.combine = nn.Linear(hidden * 2, hidden)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
-        # 親→子
-        #GINon
-        x = self.ln1(F.relu(self.down(x, edge_index) + self.dir_emb[0]))
+        # 1. 親→子 (Down Pass)
+        # xを入力として計算
+        h_down = self.ln1(F.relu(self.down(x, edge_index) + self.dir_emb[0]))
 
-        #depthｇは親→子のdownパスでのみ正しく伝達される情報であるが
-        #Downuplayerはその直後にupパスを実行し情報を逆流させてしまう
-        #それにより情報が撹拌され，depth情報が薄まってしまう可能性がある
-        #との指摘をgeminiから
-        # 子→親
+        # 2. 子→親 (Up Pass)
+        # ★重要: ここでも 'x' (元の特徴量) を入力にするか、あるいはh_downを使うかですが、
+        # 双方向の情報を独立して拾うため、元の 'x' を入力にする並列構造にします。
         rev = edge_index[[1, 0]]
-        #シンプルに
-        x = self.ln2(F.relu(self.up(x, rev) + self.dir_emb[1]))
-        return x
+        h_up = self.ln2(F.relu(self.up(x, rev) + self.dir_emb[1]))
+
+        # 3. 結合 (Concatenate)
+        # 親からの情報(h_down)と子からの情報(h_up)を横に繋げる
+        h_cat = torch.cat([h_down, h_up], dim=-1) # shape: [N, hidden*2]
+        
+        # 4. 統合と出力
+        out = self.combine(h_cat)
+        return self.dropout(out)
 
 # =========================================================
 # root プーリング（必要なら）
@@ -200,10 +212,10 @@ class TreeDecoder(nn.Module):
             h_in = node_context
         h = self.in_proj(h_in)
 
-        #Decoderでgnnレイヤーを使わないとのご指摘
+        #Decoderでgnnレイヤーを使わないとのご指摘(賛否両論あり)
         # DownUpLayer を回す
-        #for layer in self.layers:
-            #h = layer(h, edge_index)
+        for layer in self.layers:
+            h = layer(h, edge_index)
         
         # 出力投影[nondes_total,128]
         return self.out_proj(h)
@@ -249,7 +261,9 @@ class MaskedTreeAutoencoder(nn.Module):
                 x = x.clone()
                 x[mask_idx] = 0.0
                 mask_flag[mask_idx] = 1.0
-                print(f"[MaskedTreeAE] masked nodes: {mask_idx.tolist()}")
+                # ★修正: verbose制御下でのログ出力
+                if getattr(self, "_cfg", None) and self._cfg.verbose:
+                    print(f"[MaskedTreeAE] masked nodes: {mask_idx.tolist()}")
             enc_in = torch.cat([x, mask_flag], dim=1)
         else:
             mask_flag = None
@@ -285,7 +299,8 @@ class MaskedTreeAutoencoder(nn.Module):
 
         # === unit axis をここで一元的に作る ===
         axis_norm = F.normalize(x_raw[:, 7:10], dim=-1, eps=1e-6)
-        quat_norm = F.normalize(x_raw[:, 13:17], dim=-1, eps=1e-6)
+        #quat_norm = F.normalize(x_raw[:, 13:17], dim=-1, eps=1e-6)
+        rot6d_raw = x_raw[:, 13:19]  # 13番目から18番目までの6要素
         # === 出力テンソルを組み立て（評価/損失と整合）===
         # 0-2: deg, depth, mass は 0..1 に収めたいので sigmoid
         # 3-6: joint logits はそのまま（CE 用）
@@ -295,9 +310,11 @@ class MaskedTreeAutoencoder(nn.Module):
             torch.sigmoid(x_raw[:, 0:3]),   # 0..2
             x_raw[:, 3:7],                  # 3..6
             axis_norm,                      # 7..9
-            torch.sigmoid(x_raw[:,10:13]),                # 10..12
+            #torch.sigmoid(x_raw[:,10:13]),                # 10..12(origin)
+            x_raw[:,10:13],
             #x_raw[:,10:13]#baxterなどの大きなロボットを扱うときはsigmoidは邪魔らしい(普段はいいけど)
-            quat_norm                       # 13..16
+            #quat_norm                       # 13..16
+            rot6d_raw                       # 13..18 (rot6d) ★ここを変更
         ], dim=1)
 
 
@@ -337,10 +354,13 @@ def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,los
 
     """
     B, D = x_hat.shape# バッチサイズと特徴量次元数を予測値の形状から取得
-    target_mask = torch.ones(B, D, device=x_hat.device)# 再構成損失を計算する際のマスクを初期化（全て1で初期化）
+    # ★修正: マスクされたノードのみ損失を計算するよう、全ゼロで初期化してから選ばれたノードを1に設定
+    target_mask = torch.zeros(B, D, device=x_hat.device)# 再構成損失を計算する際のマスクを初期化（全て0で初期化）
     if "recon_target_idx" in out:
-        idx = out["recon_target_idx"]
-        target_mask[:, idx] = 0.0    # マスクされたノードの特徴量に対して損失を計算しないようにマスクを設定
+        idx = out["recon_target_idx"]  # ノード（行）インデックス
+        target_mask[idx, :] = 1.0    # マスクされたノード(idx)だけ損失を計算するように1を設定
+    else:
+        target_mask[:, :] = 1.0    # マスクがない場合は全ノード全特徴量で損失を計算
 
     # feature indices
     deg_index = 0
@@ -351,8 +371,8 @@ def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,los
     rotate_joint_idx = 3#revoluteジョイントのindex
     axis_idx_start, axis_idx_end = 7, 9
     origin_idx_start, origin_idx_end = 10, 12
-    quat_idx_start, quat_idx_end = 13, 16
-
+    #quat_idx_start, quat_idx_end = 13, 16
+    rot6d_idx_start, rot6d_idx_end = 13, 18
     #moveable_idx = 15
     #rot_width_idx = 16
     #rot_lower_idx = 17
@@ -410,31 +430,46 @@ def loss_reconstruction(x_hat: torch.Tensor, x_true: torch.Tensor, out: dict,los
     mask_axis = ~is_moveable_with_axis
     losses[:, axis_idx_start:axis_idx_end+1][mask_axis] = 0.
 
-
+    '''
     # origin (L1損失)
     losses[:, origin_idx_start:origin_idx_end+1] = F.l1_loss(
         x_hat[:, origin_idx_start:origin_idx_end+1], x_true[:, origin_idx_start:origin_idx_end+1], reduction='none'
     )
+    '''
+    # origin (MSE損失に変更: 長さの誤差に厳しくする)
+    losses[:, origin_idx_start:origin_idx_end+1] = F.mse_loss(
+        x_hat[:, origin_idx_start:origin_idx_end+1], 
+        x_true[:, origin_idx_start:origin_idx_end+1], 
+        reduction='none'
+    )
 
     # axisと同様に、内積を取って 1 - dot を損失とする
     # (x_hatはforwardで既にnormalize済み前提だが、念のためここでもしても良い)
-    q_hat = x_hat[:, quat_idx_start:quat_idx_end+1]
-    q_true = x_true[:, quat_idx_start:quat_idx_end+1]
+    #q_hat = x_hat[:, quat_idx_start:quat_idx_end+1]
+    #q_true = x_true[:, quat_idx_start:quat_idx_end+1]
     
     # クォータニオンは q と -q が同じ回転を表す「二重被覆」特性があるため、
     # 単純な内積ではなく、絶対値の内積、または min(|q - q_hat|, |q + q_hat|) を取る必要がある
     # しかし簡易的には 1 - |dot| で向きの反転を許容する
-    dot_prod = (q_hat * q_true).sum(dim=1).abs() # 絶対値をとることで q = -q 問題を回避
-    quat_loss = 1.0 - dot_prod
+    #dot_prod = (q_hat * q_true).sum(dim=1).abs() # 絶対値をとることで q = -q 問題を回避
+    #quat_loss = 1.0 - dot_prod
     
     # 次元拡張して格納
-    quat_loss_unsq = quat_loss.unsqueeze(1)
-    losses[:, quat_idx_start:quat_idx_end+1] = quat_loss_unsq.expand(-1, 4)
+    #quat_loss_unsq = quat_loss.unsqueeze(1)
+    #losses[:, quat_idx_start:quat_idx_end+1] = quat_loss_unsq.expand(-1, 4)
+
     #使ってない特徴量の損失計算はコメントアウト
     #losses[:, moveable_idx] = F.l1_loss(x_hat[:, moveable_idx], x_true[:, moveable_idx], reduction='none')
     #losses[:, rot_width_idx] = F.l1_loss(x_hat[:, rot_width_idx], x_true[:, rot_width_idx], reduction='none')
     #losses[:, rot_lower_idx] = F.l1_loss(x_hat[:, rot_lower_idx], x_true[:, rot_lower_idx], reduction='none')
     #losses[:, rot_upper_idx] = F.l1_loss(x_hat[:, rot_upper_idx], x_true[:, rot_upper_idx], reduction='none')
+
+    # 6D回転表現の損失 (L1損失)
+    losses[:, rot6d_idx_start:rot6d_idx_end+1] = F.l1_loss(
+        x_hat[:, rot6d_idx_start:rot6d_idx_end+1],
+        x_true[:, rot6d_idx_start:rot6d_idx_end+1],
+        reduction='none'
+    )
 
     masked_loss_tensor = losses * target_mask  # マスク適用
     # マスク適用 & 平均
