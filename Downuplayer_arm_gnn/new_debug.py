@@ -239,7 +239,7 @@ def main():
     data_stats = compute_feature_mean_std_from_dataset(dataset, population_std=True)
     print_feature_mean_std(data_stats, feature_names=dataset[0].feature_names_disp)
 
-    exclude_cols = {"axis_x", "axis_y", "axis_z","quat_x", "quat_y", "quat_z", "quat_w"}
+    exclude_cols = {"axis_x", "axis_y", "axis_z","rot6d_0","rot6d_1","rot6d_2","rot6d_3","rot6d_4","rot6d_5"}
     jtype_names = {n for n in feat_names if n.startswith("jtype_is_")}
     exclude_cols.update(jtype_names)
     z_cols = [i for i, n in enumerate(feat_names) if n not in exclude_cols]
@@ -311,7 +311,7 @@ def main():
         hidden=128,
         bottleneck_dim=128,
         enc_rounds=1,
-        dec_rounds=0,
+        dec_rounds=1,
         dropout=dropout,
         mask_strategy=cfg.mask_strategy
     ).to(device)
